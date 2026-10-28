@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#136d60">
+  <meta http-equiv="Content-Security-Policy" content="connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="description" content="上传原签到二维码，识别 classid，按当前北京时间持续生成二维码。图片在浏览器内处理。">
+  <title>此刻 · 签到二维码</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="vendor/jsQR.js"></script>
+  <script defer src="vendor/qrcode.js"></script>
+  <script defer src="qr-core.js"></script>
+  <script defer src="image-reader.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M15 15h2v2h-2zm4 0h2v6h-6v-2h4z"/><path d="M5 5h2v2H5zm12 0h2v2h-2zM5 17h2v2H5z"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m-4 4 4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 3-3 6 6"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="m10 13 4-4m-7 5-2 2a4 4 0 0 0 6 6l4-4a4 4 0 0 0 0-6M17 10l2-2a4 4 0 0 0-6-6L9 6a4 4 0 0 0 0 6" transform="translate(0 -1)"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></symbol>
+  </defs></svg>
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="此刻首页"><span class="brand-mark"><svg><use href="#i-qr"/></svg></span><span>此刻<span class="brand-divider">/</span><span class="brand-descriptor">签到码</span></span></a>
+      <span class="local-note"><svg class="icon"><use href="#i-lock"/></svg>图片仅在本地处理</span>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <div><div class="eyebrow"><span></span> KEEP IT CURRENT</div><h1 id="page-title">签到二维码，<em>实时刷新。</em></h1><p>选择课程或填写 classid，按当前时间生成新码，也可导入原二维码。</p></div>
+        <div class="current-clock"><span>北京时间 <span class="timezone">UTC+8</span></span><time id="wall-clock">--:--:--</time><span id="wall-date">正在读取设备时间</span></div>
+      </section>
+
+      <div class="workspace">
+        <section class="card import-card" aria-labelledby="import-heading">
+          <div class="card-heading"><span class="step">01</span><h2 id="import-heading">生成方式</h2><span class="small-label">选择来源</span></div>
+          <div class="tabs" role="tablist" aria-label="生成方式">
+            <button id="tab-course" role="tab" type="button" aria-selected="true" aria-controls="panel-course">按课程</button>
+            <button id="tab-upload" role="tab" type="button" aria-selected="false" aria-controls="panel-upload" tabindex="-1"><svg class="icon"><use href="#i-image"/></svg>上传图片</button>
+            <button id="tab-link" role="tab" type="button" aria-selected="false" aria-controls="panel-link" tabindex="-1"><svg class="icon"><use href="#i-link"/></svg>粘贴链接</button>
+          </div>
+          <div id="panel-course" role="tabpanel" aria-labelledby="tab-course">
+            <label class="field-label" for="course-select">选择已填写 classid 的课程</label>
+            <select id="course-select" disabled><option value="">正在同步课程…</option></select>
+            <label class="field-label classid-input-label" for="classid-input">签到 classid，也可手动填写</label>
+            <input id="classid-input" inputmode="numeric" maxlength="32" placeholder="输入 1–32 位数字" autocomplete="off">
+            <button class="button primary parse-button" type="button" id="generate-classid-button">按 classid 生成当前二维码<svg class="icon"><use href="#i-arrow"/></svg></button>
+            <p class="classid-help">选择课程即可自动生成，无需上传原二维码。时间值按当前北京时间持续更新。</p>
+          </div>
+          <div id="panel-upload" role="tabpanel" aria-labelledby="tab-upload" hidden>
+            <input id="file-input" type="file" accept="image/*" hidden>
+            <button class="drop-zone" id="drop-zone" type="button" aria-describedby="upload-help">
+              <span class="upload-symbol"><svg class="icon"><use href="#i-upload"/></svg></span>
+              <strong id="drop-title">点击上传，或拖入二维码照片</strong>
+              <span>也可以直接粘贴截图</span>
+              <span class="file-types" id="upload-help">JPG、PNG、WebP 等常见图片 · 最大 25 MB</span>
+            </button>
+          </div>
+          <div id="panel-link" role="tabpanel" aria-labelledby="tab-link" hidden>
+            <label class="field-label" for="source-input">原二维码链接或 qr 参数</label>
+            <textarea id="source-input" rows="4" spellcheck="false" placeholder="粘贴扫码得到的完整链接…"></textarea>
+            <button class="button primary parse-button" type="button" id="parse-button">识别二维码内容<svg class="icon"><use href="#i-arrow"/></svg></button>
+          </div>
+          <div id="import-message" class="message" role="status" aria-live="polite" hidden></div>
+
+          <div class="source-info" id="source-info" hidden>
+            <div class="source-topline"><span class="success-label"><svg class="icon"><use href="#i-check"/></svg><span id="source-status-text">已识别</span></span><span id="source-name" class="source-name"></span><button id="clear-button" class="text-button" type="button">清除</button></div>
+            <dl class="source-parameters" aria-label="原二维码解码参数">
+              <div><dt>课程编号 <span class="parameter-key">classid</span></dt><dd id="class-id"></dd></div>
+              <div><dt><span id="timestamp-label">原始时间值</span> <span class="parameter-key">timestamp</span></dt><dd id="source-timestamp"></dd></div>
+            </dl>
+            <dl class="source-meta"><div><dt id="source-time-label">原码北京时间</dt><dd id="source-time"></dd></div><div><dt>来源</dt><dd>eol.sicau.edu.cn</dd></div></dl>
+          </div>
+
+          <div class="settings">
+            <div class="settings-heading"><h3>刷新频率</h3><span>默认每秒更新</span></div>
+            <div class="interval-options" role="group" aria-label="二维码刷新频率">
+              <button type="button" data-interval="1000" aria-pressed="true">每 1 秒</button><button type="button" data-interval="3000" aria-pressed="false">每 3 秒</button><button type="button" data-interval="9000" aria-pressed="false">每 9 秒</button>
+            </div>
+            <p class="settings-note"><svg class="icon"><use href="#i-clock"/></svg>使用设备当前时间，并沿用原码的时间编码。</p>
+          </div>
+        </section>
+
+        <section class="card output-card" aria-labelledby="output-heading">
+          <div class="card-heading"><span class="step">02</span><h2 id="output-heading">当前二维码</h2><span id="live-status" class="status-badge idle"><span class="status-dot"></span><span id="live-status-text">等待导入</span></span></div>
+          <div class="qr-stage" id="qr-stage">
+            <div id="empty-state" class="empty-state"><span class="empty-qr"><svg><use href="#i-qr"/></svg></span><strong>新的二维码会显示在这里</strong><p>选择课程、填写 classid，或导入原码。</p></div>
+            <canvas id="qr-canvas" width="900" height="900" role="img" aria-label="根据当前时间生成的签到二维码" hidden></canvas>
+            <div id="paused-overlay" class="paused-label" hidden><svg class="icon"><use href="#i-pause"/></svg>已暂停自动刷新</div>
+          </div>
+          <div class="generation-info"><span id="generated-caption">导入后自动开始</span><time id="generated-time">--:--:--<span>.---</span></time><span id="generated-id">二维码将持续跟随当前时间更新</span></div>
+          <div class="refresh-progress" aria-hidden="true"><span id="refresh-progress"></span></div>
+          <div class="live-controls"><span id="refresh-caption"><span class="tiny-dot"></span>准备就绪</span><div><button class="text-button" id="refresh-button" type="button" disabled><svg class="icon"><use href="#i-refresh"/></svg>立即刷新</button><button class="pause-button" id="pause-button" type="button" disabled><svg class="icon"><use id="pause-icon" href="#i-pause"/></svg><span id="pause-text">暂停</span></button></div></div>
+          <div class="output-actions"><button class="button primary" id="copy-button" type="button" disabled><svg class="icon"><use href="#i-copy"/></svg>复制链接</button><button class="button secondary" id="download-button" type="button" disabled><svg class="icon"><use href="#i-download"/></svg>下载二维码</button></div>
+          <div class="open-current"><button class="button primary" id="open-button" type="button" disabled><svg class="icon"><use href="#i-arrow"/></svg><span id="open-button-text">以微信 UA 打开当前二维码</span></button><p id="open-help">EXE 版可自动设置 UA 后打开。静态网页请先复制当前链接，在开发者工具的 Network conditions → User agent 中取消 Use browser default，将自定义值设为 MicroMessenger，再在同一标签页打开复制的链接。</p></div>
+          <details class="payload-details" id="payload-details"><summary>查看链接与编码<span>＋</span></summary><div class="payload-content"><label for="generated-url" class="field-label">当前链接</label><textarea id="generated-url" readonly rows="3" spellcheck="false" placeholder="识别原二维码后显示"></textarea><span class="field-label">解码内容</span><code id="payload-value">—</code><p>时间字段沿用原码的 +8 小时偏移。生成内容是否有效，取决于原系统的校验。</p></div></details>
+        </section>
+      </div>
+      <div class="how-it-works"><span><span class="mini-step">1</span>导入照片</span><svg class="icon"><use href="#i-arrow"/></svg><span><span class="mini-step">2</span>识别 classid</span><svg class="icon"><use href="#i-arrow"/></svg><span><span class="mini-step">3</span>随时间刷新</span></div>
+    </main>
+    <footer><span>此刻 <span class="footer-dot">·</span> 让每一秒都有对应的码</span><span>保持页面打开，即可持续刷新</span></footer>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <noscript><p>请启用 JavaScript 以识别和生成二维码。</p></noscript>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "课程主页 HAR 桥接",
+  "version": "3.0.0",
+  "description": "由本机桌面工具发起，使用当前浏览器登录会话读取一次学生主页并保存含 Cookie 的 HAR。",
+  "permissions": ["scripting", "webRequest"],
+  "host_permissions": ["https://eol.sicau.edu.cn/*", "http://127.0.0.1/*"],
+  "background": {"service_worker": "background.js"},
+  "content_scripts": [{
+    "matches": ["http://127.0.0.1/course-har-capture*"],
+    "js": ["connect.js"],
+    "run_at": "document_idle"
+  }],
+  "action": {"default_title": "课程主页 HAR 桥接", "default_popup": "help.html"}
+}

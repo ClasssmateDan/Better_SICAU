@@ -1,0 +1,6 @@
+{
+  "name": "kejian-qr-tool",
+  "private": true,
+  "type": "commonjs",
+  "scripts": { "test": "node tests/qr-core.test.mjs" }
+}

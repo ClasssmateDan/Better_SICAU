@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "semester": {
+    "name": "示例：2026–2027 第一学期",
+    "startDate": "2026-09-07",
+    "weeks": 18,
+    "periods": [
+      [
+        "08:10",
+        "08:55"
+      ],
+      [
+        "09:05",
+        "09:50"
+      ],
+      [
+        "10:10",
+        "10:55"
+      ],
+      [
+        "11:05",
+        "11:50"
+      ],
+      [
+        "14:20",
+        "15:05"
+      ],
+      [
+        "15:15",
+        "16:00"
+      ]
+    ]
+  },
+  "courses": [
+    {
+      "id": "course-001",
+      "name": "示例：程序设计",
+      "teacher": "",
+      "room": "教学楼 A101",
+      "credits": 3,
+      "color": "blue",
+      "notes": "这是结构示例，请替换为本人的课程。",
+      "classid": "",
+      "meetings": [
+        {
+          "day": 1,
+          "start": 1,
+          "end": 2,
+          "startWeek": 1,
+          "endWeek": 16,
+          "parity": "all"
+        }
+      ]
+    },
+    {
+      "id": "course-002",
+      "name": "示例：大学英语",
+      "teacher": "",
+      "room": "教学楼 B203",
+      "credits": 2,
+      "color": "green",
+      "notes": "单周上课，第 3、7 周线上。",
+      "classid": "",
+      "meetings": [
+        {
+          "day": 3,
+          "start": 5,
+          "end": 6,
+          "startWeek": 1,
+          "endWeek": 15,
+          "parity": "odd",
+          "onlineWeeks": [
+            3,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "course-003",
+      "name": "示例：劳动实践",
+      "teacher": "",
+      "room": "",
+      "credits": 1,
+      "color": "amber",
+      "notes": "教师另行安排，尚无固定时间。",
+      "classid": "",
+      "unscheduled": true,
+      "meetings": []
+    }
+  ]
+}
