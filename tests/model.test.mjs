@@ -7,6 +7,12 @@ const semester = demo().semester;
 const meeting = (patch = {}) => ({ day: 1, start: 1, end: 2, startWeek: 1, endWeek: 18, parity: 'all', ...patch });
 const course = (patch = {}) => ({ id: 'test', name: '测试课程', teacher: '', room: '', notes: '', credits: 2, color: 'blue', meetings: [meeting()], ...patch });
 
+test('签到方式兼容旧课表，默认教务系统并保留自定义值', () => {
+  for (const value of [undefined, '', '   ']) assert.equal(validateCourse(course({ signinMethod: value }), semester).signinMethod, '教务系统');
+  assert.equal(validateCourse(course({ signinMethod: '  学习通  ' }), semester).signinMethod, '学习通');
+  for (const value of [null, 1, {}, '字'.repeat(41)]) assert.throws(() => validateCourse(course({ signinMethod: value }), semester), /签到方式/);
+});
+
 test('演示课表通过完整校验，秋季学期从周一开始', () => {
   const data = validateData(demo());
   assert.equal(data.courses.length, 8);

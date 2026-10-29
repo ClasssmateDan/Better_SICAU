@@ -50,7 +50,8 @@
           "endWeek": 16,
           "parity": "all"
         }
-      ]
+      ],
+      "signinMethod": "教务系统"
     },
     {
       "id": "course-002",
@@ -74,7 +75,8 @@
             7
           ]
         }
-      ]
+      ],
+      "signinMethod": "教务系统"
     },
     {
       "id": "course-003",
@@ -86,7 +88,8 @@
       "notes": "教师另行安排，尚无固定时间。",
       "classid": "",
       "unscheduled": true,
-      "meetings": []
+      "meetings": [],
+      "signinMethod": "教务系统"
     }
   ]
 }

@@ -1,3 +1,5 @@
+Better SICAU 桌面版
+
 课间课程表 {{VERSION}} · Windows 10/11 x64
 
 请先从托盘退出旧版课间，并关闭旧课程工具。把完整压缩包解压到固定、可写的文件夹，再运行课间课程表-{{VERSION}}.exe。不要直接在压缩包内运行。
@@ -36,3 +38,5 @@
 系统仍需 Microsoft Edge WebView2 Runtime，不需要 Node.js 或手动启动网页服务。缺少 Runtime 时可从微软官网安装：https://developer.microsoft.com/microsoft-edge/webview2/
 
 本发布包适用于 Windows 电脑版。第三方许可随发布包提供。
+
+课程可设置自定义“签到方式”，默认为教务系统。其他方式点击“跳转签到页”时需确认是否继续；旧课表缺少字段时采用默认方式，导入导出会保留该设置。

@@ -17,8 +17,8 @@ using Microsoft.Web.WebView2.WinForms;
 
 [assembly: AssemblyTitle("课间课程表")]
 [assembly: AssemblyProduct("课间课程表")]
-[assembly: AssemblyVersion("1.7.3.0")]
-[assembly: AssemblyFileVersion("1.7.3.0")]
+[assembly: AssemblyVersion("1.7.4.0")]
+[assembly: AssemblyFileVersion("1.7.4.0")]
 
 namespace KeJianDesktop {
     internal static class Program {
@@ -66,7 +66,7 @@ namespace KeJianDesktop {
             }
         }
         private static void PrepareRuntime() {
-            string sdk = Path.Combine(DataRoot, "runtime", "1.7.3", "sdk");
+            string sdk = Path.Combine(DataRoot, "runtime", "1.7.4", "sdk");
             Directory.CreateDirectory(sdk);
             string loader = Path.Combine(sdk, "WebView2Loader.dll");
             byte[] bytes = Resource("WebView2Loader.dll");
@@ -206,8 +206,8 @@ namespace KeJianDesktop {
             menu.Items.Add(reminderMenu);
             menu.Items.Add("测试通知", null, delegate { Notify("课间 · 测试通知", "上课、下课时将在桌面右下角显示提醒。"); });
             menu.Items.Add("关于课间", null, delegate {
-                using (Form about = new Form { Text = "关于课间课程表 1.7.3", ClientSize = new Size(640, 460), StartPosition = FormStartPosition.CenterParent }) {
-                    about.Controls.Add(new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei UI", 10), Text = "课间课程表 1.7.3\r\n离线课表管理、二维码预测与上下课提醒\r\n\r\nMicrosoft WebView2 SDK 1.0.4258.31\r\n\r\n" + Encoding.UTF8.GetString(Program.Resource("WebView2.LICENSE.txt")) + "\r\n\r\n" + Encoding.UTF8.GetString(Program.Resource("QR-LICENSES.txt")) });
+                using (Form about = new Form { Text = "关于课间课程表 1.7.4", ClientSize = new Size(640, 460), StartPosition = FormStartPosition.CenterParent }) {
+                    about.Controls.Add(new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei UI", 10), Text = "课间课程表 1.7.4\r\n离线课表管理、二维码预测与上下课提醒\r\n\r\nMicrosoft WebView2 SDK 1.0.4258.31\r\n\r\n" + Encoding.UTF8.GetString(Program.Resource("WebView2.LICENSE.txt")) + "\r\n\r\n" + Encoding.UTF8.GetString(Program.Resource("QR-LICENSES.txt")) });
                     about.ShowDialog(this);
                 }
             });
@@ -227,7 +227,7 @@ namespace KeJianDesktop {
 
         private async Task InitializeBrowser() {
             try {
-                string assets = Path.Combine(Program.DataRoot, "runtime", "1.7.3", "assets");
+                string assets = Path.Combine(Program.DataRoot, "runtime", "1.7.4", "assets");
                 Directory.CreateDirectory(assets);
                 File.WriteAllBytes(Path.Combine(assets, "index.html"), Program.Resource("index.html"));
                 CoreWebView2Environment env = await Program.CreateBrowserEnvironment(Path.Combine(Program.DataRoot, "WebView2"));

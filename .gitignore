@@ -20,3 +20,8 @@ desktop/*.exe
 desktop/*.ico
 KeJianReminders.exe
 reminders/state.json*
+android/.build/
+android/.test-profile*/
+android/assets/
+android/private-signing/
+android/local-toolchain.json

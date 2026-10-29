@@ -16,7 +16,7 @@ internal static class PortableDataTests {
     private static void Run(string name,Action action) { action(); passed++; Console.WriteLine("PASS "+name); }
     private static string Bundle(string app) {
         string folder=PortableData.DefaultRoot(app);
-        string[] names={"course-tools/browser-extension/manifest.json","course-tools/browser-extension/background.js","runtime/1.7.3/course-tools/KeJianCourseTools.exe"};
+        string[] names={"course-tools/browser-extension/manifest.json","course-tools/browser-extension/background.js","runtime/1.7.4/course-tools/KeJianCourseTools.exe"};
         StringBuilder manifest=new StringBuilder("KeJian bundled assets v1\n");
         foreach(string name in names) {
             string file=Path.Combine(folder,name); Put(file,"bundled "+name);
@@ -33,7 +33,7 @@ internal static class PortableDataTests {
                     string target=Bundle(app); Put(Path.Combine(old,"timetable.json"),"personal timetable");
                     PortableDataResult result=PortableData.Prepare(app,old,true,copy);
                     Check(result.Migrated&&result.Warning.Length==0&&!Directory.Exists(old),"bundle blocked migration");
-                    Check(File.ReadAllText(Path.Combine(target,"timetable.json"))=="personal timetable"&&File.Exists(Path.Combine(target,"course-tools/browser-extension/manifest.json"))&&File.Exists(Path.Combine(target,"runtime/1.7.3/course-tools/KeJianCourseTools.exe")),"migration lost data or packaged assets");
+                    Check(File.ReadAllText(Path.Combine(target,"timetable.json"))=="personal timetable"&&File.Exists(Path.Combine(target,"course-tools/browser-extension/manifest.json"))&&File.Exists(Path.Combine(target,"runtime/1.7.4/course-tools/KeJianCourseTools.exe")),"migration lost data or packaged assets");
                     Check(Directory.GetDirectories(app,".kejian-bundle-*").Length==0,"bundle staging leaked");
                 }
             });

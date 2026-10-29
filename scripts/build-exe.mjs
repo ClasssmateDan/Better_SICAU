@@ -94,7 +94,7 @@ await bundleFile(`runtime/${version}/course-tools/KeJianCourseTools.exe`, course
 const marker = '课间数据/发布资源清单.sha256';
 await writeFile(path.join(stage, marker), 'KeJian bundled assets v1\n' + bundleFiles.join('\n') + '\n', 'utf8');
 zipFiles.push('课间数据/', marker);
-run(iconTool, ['--zip-root', path.join(output, `课间课程表-Windows-x64-${version}.zip`), stage, ...zipFiles]);
+run(iconTool, ['--zip-root', path.join(output, `Better-SICAU-Desktop-Windows-x64-${version}.zip`), stage, ...zipFiles]);
 try { await copyFile(exe, path.join(output, '课间课程表.exe')); }
 catch (error) { console.log('固定文件名可能仍被旧程序占用，请使用新生成的版本号 EXE：' + error.code); }
 console.log('已生成：' + exe);

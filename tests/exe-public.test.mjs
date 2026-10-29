@@ -21,7 +21,7 @@ const fixture=name=>path.join(root,'desktop','.test-profile-u-'+name+'-'+Date.no
 
 test('正式 ZIP 在全新目录启动为空课表、零学分、零提醒，扩展和工具完整',async()=>{
   const folder=fixture('unpacked'); await mkdir(folder,{recursive:true});
-  const unpack=spawnSync('python',['-X','utf8','-c','import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])',path.join(root,'release',`课间课程表-Windows-x64-${version}.zip`),folder],{windowsHide:true,encoding:'utf8'});
+  const unpack=spawnSync('python',['-X','utf8','-c','import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])',path.join(root,'release',`Better-SICAU-Desktop-Windows-x64-${version}.zip`),folder],{windowsHide:true,encoding:'utf8'});
   assert.equal(unpack.status,0,unpack.stderr);
   const profile=path.join(folder,'课间数据');
   const manifest=JSON.parse(await readFile(path.join(profile,'course-tools/browser-extension/manifest.json'),'utf8'));

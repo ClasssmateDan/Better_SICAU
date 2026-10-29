@@ -1,5 +1,5 @@
 import {
-  STORAGE_KEY, DAYS, COLORS, DEFAULT_PERIODS, dateKey, weekForDate,
+  STORAGE_KEY, DAYS, COLORS, DEFAULT_PERIODS, DEFAULT_SIGNIN_METHOD, validateSigninMethod, dateKey, weekForDate,
   weekDates, sessionsForWeek, validateCourse, validateSemester, validateData, findConflicts, minutes,
 } from './model.mjs';
 import { createPreset, fillKnownClassids } from './preset.mjs';
@@ -128,16 +128,21 @@ function setCourseOpenPending(pending) {
   $$('[data-signin-course-id],#course-signin-button').forEach(button => { button.disabled = pending; });
 }
 
-function openCourseSignin(id) {
+async function openCourseSignin(id) {
   const course = data.courses.find(item => item.id === id);
   if (!course?.classid) { toast('请先在课程中填写签到 classid。'); return; }
-  if (!nativeBridge) { showCourseQr(id); toast('二维码已按课程生成。以微信 UA 打开请使用 EXE，或在浏览器中手动设置。'); return; }
   if (courseOpenPending) return;
+  setCourseOpenPending(true);
+  let dispatched = false;
   try {
+    const method = validateSigninMethod($('#course-dialog').open && editingId === id ? $('#course-form').elements.signinMethod.value : course.signinMethod);
+    if (method !== DEFAULT_SIGNIN_METHOD && !await askConfirm('继续跳转签到页？', `「${course.name}」的签到方式为“${method}”。继续将打开教务系统签到页，可能不适用于此课程。是否继续？`, '继续跳转')) return;
+    if (!nativeBridge) { showCourseQr(id); toast('二维码已按课程生成。以微信 UA 打开请使用 EXE，或在浏览器中手动设置。'); return; }
     const current = window.QrCore.generateQr({ classId: course.classid });
-    setCourseOpenPending(true);
     nativeBridge.postMessage({ type: 'qr:open', url: current.url });
-  } catch (error) { setCourseOpenPending(false); toast('签到页未打开：' + error.message); }
+    dispatched = true;
+  } catch (error) { toast('签到页未打开：' + error.message); }
+  finally { if (!dispatched) setCourseOpenPending(false); }
 }
 
 function showError(selector, message) {
@@ -211,7 +216,7 @@ function commit(next, { recover = false } = {}) {
 }
 
 function matches(course, search) {
-  return [course.name, course.teacher, course.room, course.notes, course.id, course.classid || '', ...course.meetings.map(meeting => meeting.room || '')].some(text => text.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+  return [course.name, course.teacher, course.room, course.notes, course.signinMethod, course.id, course.classid || '', ...course.meetings.map(meeting => meeting.room || '')].some(text => text.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
 }
 
 function parityText(parity) { return { all: '每周', odd: '单周', even: '双周' }[parity]; }
@@ -284,6 +289,7 @@ function renderCourses() {
       <h3>${esc(course.name)}</h3><div class="course-meta">${icon('user')}${esc(course.teacher || '教师待定')}</div><div class="course-meta">${icon('pin')}${esc(course.room || '地点待定')}</div>
       <div class="meeting-tags">${course.unscheduled ? '<span class="meeting-tag">暂不排课 · 教师安排／自主学习</span>' : course.meetings.map(meeting => `<span class="meeting-tag">${meetingText(meeting)} · 第 ${meeting.startWeek}–${meeting.endWeek} 周 · ${esc(meeting.room || course.room || '地点待定')}${meeting.onlineWeeks?.length ? ` · 第 ${meeting.onlineWeeks.join('、')} 周线上` : ''}</span>`).join('')}</div>
       ${course.notes ? `<p class="course-notes">${esc(course.notes)}</p>` : ''}
+      <div class="course-meta">${icon('pointer')}签到方式：${esc(course.signinMethod)}</div>
       <div class="course-card-footer"><span>${esc(course.id)} · ${course.unscheduled ? '暂不排课' : `${course.meetings.length} 个安排`}</span>${icon('right')}</div>
     </button>
     ${course.classid ? `<div class="course-signin"><span class="course-classid">classid · ${esc(course.classid)}</span><div class="course-signin-actions"><button type="button" class="button button-white" data-qr-course-id="${esc(course.id)}">生成二维码</button><button type="button" class="button button-primary" data-signin-course-id="${esc(course.id)}" ${courseOpenPending ? 'disabled' : ''}>${nativeBridge ? '跳转签到页' : '签到页说明'}</button>${courseToolsSupported ? `<button type="button" class="button button-white" data-tools-course-id="${esc(course.id)}">签到与作业</button>` : ''}</div></div>` : ''}
@@ -415,6 +421,7 @@ function openCourse(id = null, preset = {}) {
   $('#course-dialog-title').textContent = course ? '编辑课程' : '添加课程';
   $('#delete-course').hidden = !course;
   for (const field of ['name', 'teacher', 'room', 'notes', 'credits', 'classid']) $('#course-form').elements[field].value = course?.[field] ?? (field === 'credits' ? 2 : '');
+  $('#course-form').elements.signinMethod.value = course?.signinMethod ?? DEFAULT_SIGNIN_METHOD;
   const selectedColor = course?.color ?? COLORS[data.courses.length % COLORS.length];
   $('#color-picker').innerHTML = COLORS.map(color => `<label class="color-choice ${color}" title="${colorNames[color]}"><input type="radio" name="color" value="${color}" ${color === selectedColor ? 'checked' : ''} aria-label="${colorNames[color]}"><span></span></label>`).join('');
   $('#meeting-rows').replaceChildren(...(course?.meetings.length ? course.meetings : [{ day: preset.day ?? 1, start: preset.period ?? 1, end: Math.min((preset.period ?? 1) + 1, data.semester.periods.length), startWeek: 1, endWeek: data.semester.weeks, parity: 'all' }]).map(meetingRow));
@@ -438,7 +445,7 @@ $('#course-form').addEventListener('submit', event => {
         : ['parity', 'room'].includes(field) ? input.value : Number(input.value);
       return [field, value];
     })));
-    const candidate = validateCourse({ id: editingId ?? crypto.randomUUID(), name: form.get('name'), teacher: form.get('teacher'), room: form.get('room'), notes: form.get('notes'), classid: form.get('classid'), credits: Number(form.get('credits')), color: form.get('color'), meetings, unscheduled }, data.semester);
+    const candidate = validateCourse({ id: editingId ?? crypto.randomUUID(), name: form.get('name'), teacher: form.get('teacher'), room: form.get('room'), notes: form.get('notes'), classid: form.get('classid'), signinMethod: form.get('signinMethod'), credits: Number(form.get('credits')), color: form.get('color'), meetings, unscheduled }, data.semester);
     const conflicts = findConflicts(candidate, data.courses, data.semester);
     if (conflicts.length) {
       const first = conflicts[0];

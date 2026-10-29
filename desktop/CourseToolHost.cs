@@ -27,7 +27,7 @@ namespace KeJianDesktop {
             if (File.Exists(filename)) File.Replace(pending, filename, null); else File.Move(pending, filename);
         }
         private string PrepareAssets() {
-            string runtime = Path.Combine(Program.DataRoot, "runtime", "1.7.3", "course-tools");
+            string runtime = Path.Combine(Program.DataRoot, "runtime", "1.7.4", "course-tools");
             Directory.CreateDirectory(DataDirectory);
             string exe = Path.Combine(runtime, "KeJianCourseTools.exe");
             WriteResource(exe, Program.Resource("course-tool.exe"));

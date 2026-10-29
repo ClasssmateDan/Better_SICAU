@@ -1,4 +1,4 @@
-# 课间课程表
+# Better SICAU · 课间课程表
 
 Windows 离线课程表与静态网页，支持课程管理、JSON 导入导出、单双周、线上授课周次和上下课提醒。
 
@@ -6,7 +6,9 @@ Windows 离线课程表与静态网页，支持课程管理、JSON 导入导出�
 
 ## 下载与运行
 
-Windows 10/11 x64 用户可下载 [Releases](https://github.com/ClasssmateDan/Better_SICAU/releases) 中的 `课间课程表-Windows-x64-1.7.3.zip`。完整解压到固定、可写的文件夹，运行 `课间课程表-1.7.3.exe`。系统需要 Microsoft Edge WebView2 Runtime；静态网页可以直接打开 `index.html`。
+Windows 10/11 x64 用户可从 [Releases](https://github.com/ClasssmateDan/Better_SICAU/releases) 下载 **Better SICAU 桌面版**（`Better-SICAU-Desktop-Windows-x64-1.7.4.zip`）。完整解压到固定、可写的文件夹，运行 `课间课程表-1.7.4.exe`。系统需要 Microsoft Edge WebView2 Runtime；静态网页可以直接打开 `index.html`。
+
+Android 8.0 及以上用户可下载 **Better SICAU 安卓版**（`Better-SICAU-Android-1.5.3.apk`）。首次安装为空课表，已安装版本覆盖升级时保留已有数据。1.5.3 修复重复打开签到页的 WebView 初始化异常；尚未进行真机复测。
 
 发布包直接附带 `课间数据/course-tools/browser-extension` 扩展目录和课程工具。扩展安装步骤见“课程工具使用说明.md”，加载整个扩展目录。普通课表不需要安装扩展。
 
@@ -44,6 +46,10 @@ npm run test:exe
 
 SDK 会从固定来源下载并核对 SHA256；首次准备依赖需要联网。构建产物位于 `release/`。第三方组件包括 WebView2、jsQR、qrcode-generator、CPython、Tcl/Tk 和 PyInstaller，其许可随相应源码或发布包提供。
 
+安卓构建需 JDK 17/21、Android SDK platform 35 与 build-tools 35.0.0，配置 `JAVA_HOME` 和 `KEJIAN_ANDROID_SDK` 后运行 `npm run build:apk`。首次本地构建会生成私有签名密钥，后续更新需保留相同密钥；不要将密钥或密码上传仓库。`KEJIAN_ANDROID_SIGNING_DIR` 可指定已有签名目录。
+
 ## 上传到 GitHub
 
 解压源码包，将内容上传到仓库根目录；Windows ZIP 可作为 GitHub Release 附件上传。`.gitignore` 已排除运行数据、HAR、浏览器配置、构建缓存和发布目录。请使用干净源码包发布，不将使用后的“课间数据”上传。
+
+课程可设置自定义“签到方式”，默认为教务系统。其他方式点击“跳转签到页”时需确认是否继续；旧课表缺少字段时采用默认方式，导入导出会保留该设置。

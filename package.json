@@ -1,9 +1,9 @@
 {
-  "name": "kejian-timetable",
-  "version": "1.7.3",
+  "name": "better-sicau",
+  "version": "1.7.4",
   "private": true,
   "type": "module",
-  "description": "课间公开版：离线 Windows 课程表，默认空白",
+  "description": "Better SICAU：离线课程表与课程工具",
   "kejianEdition": "public-empty",
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -13,6 +13,8 @@
     "build:exe": "node scripts/build-exe.mjs",
     "test:exe": "node tests/exe-public.test.mjs",
     "test:portable": "node scripts/test-portable.mjs",
-    "build:desktop": "node scripts/build-desktop.mjs"
+    "build:desktop": "node scripts/build-desktop.mjs",
+    "build:apk": "node scripts/build-apk.mjs",
+    "test:android": "node tests/android-public.test.mjs"
   }
 }

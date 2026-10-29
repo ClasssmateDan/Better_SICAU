@@ -1,6 +1,6 @@
 # 电脑版课间 · 课程工具
 
-课程工具仅适用于 Windows 版课表。完整发布包已直接附带 `课间数据/course-tools/browser-extension` 扩展文件夹，以及 `课间数据/runtime/1.7.3/course-tools/KeJianCourseTools.exe` 工具运行程序。扩展在解压后即可安装。主课表 `timetable.json`、设置 `settings.json` 和浏览器配置在首次启动后生成；发布包不附带使用后的个人数据。Windows EXE 同时内置这些资源，无需另装 Python，也不依赖原项目文件夹。课间自身的课表、工具、扩展、记录、浏览器配置和临时运行文件统一位于 EXE 旁的“课间数据”目录，不再写入 AppData。
+课程工具仅适用于 Windows 版课表。完整发布包已直接附带 `课间数据/course-tools/browser-extension` 扩展文件夹，以及 `课间数据/runtime/1.7.4/course-tools/KeJianCourseTools.exe` 工具运行程序。扩展在解压后即可安装。主课表 `timetable.json`、设置 `settings.json` 和浏览器配置在首次启动后生成；发布包不附带使用后的个人数据。Windows EXE 同时内置这些资源，无需另装 Python，也不依赖原项目文件夹。课间自身的课表、工具、扩展、记录、浏览器配置和临时运行文件统一位于 EXE 旁的“课间数据”目录，不再写入 AppData。
 
 在课表左侧打开“课程工具”，或在有 classid 的课程卡片点击“签到与作业”。课表只传入课程定位信息；工具用本次读取的本人账号与课程列表核对 classid，不将未匹配的课表课程补入账号列表。没有 classid 的课程可直接在工具读取的本人课程列表中选择。
 

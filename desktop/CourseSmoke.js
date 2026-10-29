@@ -10,8 +10,15 @@
     const form=$('course-form');
     form.elements.name.value='离线测试课程';
     form.elements.classid.value='900000001';
+    if(form.elements.signinMethod.value!=='教务系统')throw Error('新课程签到方式不正确');
+    form.elements.signinMethod.value='学习通';
     form.requestSubmit();
     await until(() => !$('course-dialog').open && $('stat-courses').textContent === '1', '无法添加课程');
+    document.querySelector('[data-signin-course-id]').click();
+    await until(()=>$('confirm-dialog').open,'非教务方式没有确认');
+    check($('confirm-message').textContent.includes('学习通'),'确认没有显示已保存的签到方式');
+    $('confirm-dialog').querySelector('[data-close]').click();
+    await until(()=>!$('confirm-dialog').open&&!document.querySelector('[data-signin-course-id]').disabled,'取消跳转后没有恢复');
     $('settings-button').click();
     $('reset-preset').click();
     await until(() => $('confirm-dialog').open, '重置前没有确认');

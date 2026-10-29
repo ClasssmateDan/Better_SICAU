@@ -1,5 +1,6 @@
 // Framework-independent domain model. Dates represent local calendar dates.
 export const STORAGE_KEY = 'kejian.timetable.public.v1';
+export const DEFAULT_SIGNIN_METHOD = '教务系统';
 export const DAYS = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
 export const COLORS = ['coral', 'blue', 'green', 'purple', 'amber', 'pink'];
 export const DEFAULT_PERIODS = [
@@ -78,6 +79,10 @@ export function validateClassid(value) {
   return classid;
 }
 
+export function validateSigninMethod(value = DEFAULT_SIGNIN_METHOD) {
+  return safeText(value, '签到方式', 40, true) || DEFAULT_SIGNIN_METHOD;
+}
+
 export function validateSemester(input) {
   if (!input || typeof input !== 'object') throw new Error('学期设置格式不正确');
   const name = safeText(input.name, '学期名称', 60);
@@ -104,6 +109,7 @@ export function validateCourse(input, semester) {
   const room = safeText(input.room ?? '', '上课地点', 80, true);
   const notes = safeText(input.notes ?? '', '备注', 1000, true);
   const classid = input.classid === undefined ? undefined : validateClassid(input.classid);
+  const signinMethod = validateSigninMethod(input.signinMethod);
   if (!COLORS.includes(input.color)) throw new Error('请选择有效的课程颜色');
   if (typeof input.credits !== 'number' || !Number.isFinite(input.credits) || input.credits < 0 || input.credits > 30) throw new Error('学分应在 0–30 之间');
   if (input.unscheduled !== undefined && typeof input.unscheduled !== 'boolean') throw new Error('暂不排课标记格式不正确');
@@ -133,7 +139,7 @@ export function validateCourse(input, semester) {
     }
     return clean;
   });
-  return { id, name, teacher, room, notes, credits: input.credits, color: input.color, meetings, ...(classid !== undefined ? { classid } : {}), ...(input.unscheduled ? { unscheduled: true } : {}) };
+  return { id, name, teacher, room, notes, signinMethod, credits: input.credits, color: input.color, meetings, ...(classid !== undefined ? { classid } : {}), ...(input.unscheduled ? { unscheduled: true } : {}) };
 }
 
 export function findConflicts(candidate, courses, semester) {
@@ -184,5 +190,5 @@ export function createDemo(now = new Date()) {
     { id: 'demo-lab', name: '物理实验', teacher: '周老师', room: '实验楼 · 308', credits: 1.5, color: 'green', notes: '实验前完成预习报告。', meetings: [meeting(3, 7, 8, 'odd', 16)] },
     { id: 'demo-art', name: '艺术与审美', teacher: '林老师', room: '艺术楼 · 101', credits: 2, color: 'purple', notes: '双周的通识选修课。', meetings: [meeting(4, 9, 10, 'even', 16)] },
   ];
-  return { version: 1, semester, courses };
+  return { version: 1, semester, courses: courses.map(course => ({ ...course, signinMethod: DEFAULT_SIGNIN_METHOD })) };
 }

@@ -43,3 +43,12 @@ test('二维码核心仍支持显式 classid 与当前时间', () => {
   const result=qr.generateQr({classId:'900000001'},1793102400000);
   assert.equal(qr.parseQrContent(result.url).classId,'900000001');
 });
+
+test('签到方式随导入导出保留，旧文件默认教务系统', async () => {
+  const raw=JSON.parse(await readFile(new URL('../课表导入示例.json',import.meta.url),'utf8'));
+  raw.courses[0].signinMethod='学习通'; delete raw.courses[1].signinMethod;
+  const imported=parseTimetableFile(JSON.stringify(raw));
+  assert.equal(imported.courses[0].signinMethod,'学习通');
+  assert.equal(imported.courses[1].signinMethod,'教务系统');
+  assert.deepEqual(parseTimetableFile(exportTimetableFile(imported)),imported);
+});

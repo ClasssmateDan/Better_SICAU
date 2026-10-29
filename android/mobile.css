@@ -1,0 +1,50 @@
+/* Only included in the Android package; desktop keeps its existing layout. */
+.android-platform .sidebar,.android-platform .topbar,.android-platform .below-calendar,.android-platform .app-footer{display:none}
+.android-platform .main-content{margin:0;width:100%;padding:0 14px 90px;min-width:0}
+.android-platform .page-header{padding:18px 0 14px;gap:6px;flex-direction:column;align-items:stretch}
+.android-platform .page-header .eyebrow{display:none}.android-platform h1{font-size:28px;margin:2px 0 6px}
+.android-platform .page-header p{font-size:14px;margin:0;line-height:1.7}
+.android-platform .header-actions{padding-top:8px;justify-content:flex-start;gap:10px}
+.android-platform .button{min-height:44px;font-size:15px}.android-platform .icon-button{min-width:40px;min-height:40px}
+.android-platform .overview{gap:8px;margin-bottom:14px}.android-platform .stat-card{padding:12px;min-height:92px;flex-direction:column;gap:7px}
+.android-platform .stat-icon,.android-platform .stat-decoration{display:none}.android-platform .stat-label{font-size:13px}
+.android-platform .stat-value{font-size:24px}.android-platform .stat-value small{display:inline;font-size:12px;margin-left:5px}
+.android-platform .calendar-toolbar{padding:10px}.android-platform .week-controls{width:100%;justify-content:space-between;gap:0}
+.android-platform .week-select-wrap select{min-height:44px}.android-platform .today-button{min-height:40px}
+.android-platform .calendar-tools{width:100%;gap:12px}.android-platform .calendar-tools .search-wrap{max-width:none;flex:1}
+.android-platform .calendar-scroll{max-width:100%;overscroll-behavior-x:contain}
+.android-platform .calendar{min-width:0;width:100%;--row-height:64px;grid-template-columns:30px repeat(var(--day-count,7),minmax(0,1fr));grid-template-rows:40px repeat(var(--period-count,10),var(--row-height))}
+.android-platform .calendar .period-label,.android-platform .time-corner{position:sticky;left:0;z-index:3;background:#fff}
+.android-platform .event-title{font-size:clamp(10px,2.8vw,12px);line-height:1.35;letter-spacing:0;-webkit-line-clamp:6;overflow-wrap:anywhere;flex-shrink:1;min-height:0}.android-platform .event-room{font-size:9px;line-height:1.3;margin-top:3px;white-space:normal;overflow-wrap:anywhere;flex-shrink:0}.android-platform .event-bottom{display:none}
+.android-platform .course-event{padding:5px 3px;margin:2px 1px;border-left-width:2px;border-radius:4px}.android-platform .calendar-footer{font-size:12px;line-height:1.7;padding:12px}
+.android-platform .calendar-footer .calendar-hint{display:none}.android-platform .unscheduled-summary{font-size:14px}
+.android-platform .course-list{grid-template-columns:1fr}.android-platform .course-card{padding:0}.android-platform .course-card-edit{padding:18px}
+.android-platform .course-signin-actions .button{font-size:14px;min-height:42px}
+.android-platform .modal{max-height:calc(100dvh - 24px);max-width:calc(100vw - 16px)}
+.android-platform .modal-body{padding:18px;max-height:60dvh}.android-platform .modal-header{padding:18px}.android-platform .modal-header h2{font-size:23px}
+.android-platform .modal-footer{padding:12px 18px}.android-platform .modal input,.android-platform .modal select,.android-platform .modal textarea{font-size:16px}
+.android-platform .modal-footer .button{min-height:44px}.android-platform .form-grid{grid-template-columns:1fr 1fr}
+.android-platform .toast{left:50%;bottom:90px;font-size:14px;width:max-content;max-width:92vw}
+.android-platform .shortcut-hint{display:none}.android-platform #qr-frame{min-height:600px}
+.mobile-bottom{position:fixed;bottom:0;left:0;right:0;height:72px;z-index:20;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid #e7ebf0;padding:5px 8px 7px;box-shadow:0 -3px 14px #34415205}
+.mobile-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:58px;border:0;border-radius:10px;background:transparent;color:#7b8999;font-family:inherit;font-size:13px;line-height:1.3}
+.mobile-tab svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.mobile-tab.active{background:#fcf0eb;color:#be785f}.mobile-menu{display:grid;grid-template-columns:1fr 1fr;gap:12px}.mobile-menu .button{justify-content:center;min-height:56px}
+@media(min-width:800px){.android-platform .main-content{max-width:1200px;margin:auto}.android-platform .course-list{grid-template-columns:repeat(2,1fr)}.android-platform .stat-card{flex-direction:row;align-items:center}}
+
+/* The timetable page is only the grid; other actions live under More. */
+.android-platform.timetable-active .page-header,.android-platform.timetable-active .overview,
+.android-platform.timetable-active .calendar-toolbar,.android-platform.timetable-active .calendar-footer,
+.android-platform.timetable-active #filter-status,.android-platform.timetable-active #unscheduled-summary{display:none!important}
+.android-platform.timetable-active .main-content{max-width:none;margin:0;padding:0 0 72px}
+.android-platform.timetable-active .calendar-panel{border:0;border-radius:0;box-shadow:none}
+.android-platform.timetable-active .calendar-scroll{width:100%;overflow-x:hidden}
+.android-platform .calendar{--row-height:clamp(40px,calc((100vh - 112px) / var(--period-count,10)),80px);--row-height:clamp(40px,calc((100dvh - 112px) / var(--period-count,10)),80px)}
+.android-platform .day-header{flex-direction:column;gap:2px;min-width:0;padding:3px 0}
+.android-platform .day-name{font-size:11px;letter-spacing:0}.android-platform .day-date{font-size:12px;width:22px;height:22px;line-height:22px;border-radius:6px}
+.android-platform .day-header.is-today .day-date{width:22px;height:22px;font-size:12px}
+.android-platform .time-corner{flex-direction:column;gap:3px;font-size:9px;line-height:1.2;white-space:nowrap;z-index:4}
+.android-platform .time-corner small{font-size:9px}.android-platform .period-label{gap:3px}
+.android-platform .period-label strong{font-size:11px}.android-platform .period-label small{font-size:8px;line-height:1.2}
+.android-platform .slot{touch-action:manipulation}.mobile-week-settings{grid-column:1/-1;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.mobile-week-settings h3{font-size:15px;margin:0 0 10px}.mobile-week-settings .week-controls{display:flex;justify-content:space-between;gap:2px}
