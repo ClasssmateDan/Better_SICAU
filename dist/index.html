@@ -19,20 +19,15 @@
       <nav class="nav-list">
         <button class="nav-item active" data-view="timetable"><span data-icon="grid"></span>我的课表</button>
         <button class="nav-item" data-view="courses"><span data-icon="book"></span>课程管理<span class="nav-count" id="nav-count">0</span></button>
+        <button class="nav-item" data-view="planner"><span data-icon="calendar"></span>日历备忘</button>
         <button class="nav-item" data-view="qr" title="二维码预测" aria-label="二维码预测"><span data-icon="qr"></span>二维码预测</button>
-        <button class="nav-item" data-view="tools" id="course-tools-nav" hidden><span data-icon="tools"></span>课程工具</button>
         <button class="nav-item" id="settings-button"><span data-icon="settings"></span>学期设置</button>
       </nav>
-      <section class="sidebar-today" aria-labelledby="today-heading">
-        <div class="section-eyebrow" id="today-heading">今日安排 <span id="today-count"></span></div>
-        <div id="today-agenda"></div>
-      </section>
       <div class="sidebar-bottom">
-        <div class="little-note"><span class="note-spark">✳</span><p>好好上课，<br>也别忘了好好生活。</p><span class="note-line"></span></div>
         <button class="nav-item secondary-nav" id="import-button"><span data-icon="upload"></span>导入课表</button>
-        <button class="nav-item secondary-nav" id="reminders-button"><span data-icon="clock"></span>桌面提醒</button>
+        <button class="nav-item secondary-nav" id="reminders-button"><span data-icon="clock"></span>提醒设置</button>
         <button class="nav-item secondary-nav" id="help-button"><span data-icon="help"></span>使用指南</button>
-        <div class="local-indicator"><span></span>数据保存在此浏览器</div>
+        <div class="local-indicator" aria-label="应用版本"></div>
       </div>
     </aside>
 
@@ -69,25 +64,45 @@
         <div class="courses-toolbar"><div><h2>所有课程 <span id="course-list-count"></span></h2><p>管理这个学期的每一份学习计划。</p></div><label class="search-wrap"><span data-icon="search"></span><input id="course-search" type="search" placeholder="搜索课程、教师或地点" aria-label="搜索所有课程" maxlength="80"></label></div>
         <div id="course-list" class="course-list"></div>
       </section>
+      <section id="planner-view" hidden aria-label="日历备忘">
+        <div class="planner-layout">
+          <div class="planner-month-panel">
+            <div class="planner-toolbar"><button class="icon-button" id="planner-prev" aria-label="上个月"><span data-icon="left"></span></button><label class="planner-month-label">月份<input id="planner-month" type="month" min="2000-01" max="2100-12" aria-label="选择月份"></label><button class="icon-button" id="planner-next" aria-label="下个月"><span data-icon="right"></span></button><button class="today-button" id="planner-today">今天</button></div>
+            <div class="planner-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+            <div id="planner-days" class="planner-days" role="group" aria-label="选择日期"></div>
+            <p class="planner-legend"><span>● 备忘录</span><span>圆点颜色对应课程</span></p>
+            <details class="planner-holiday-info"><summary>节假日与调休说明</summary><p id="planner-holiday-note"></p><p>开启系统提醒后，假期首日、调休上班日和仅提示日期的节日将在当天北京时间 09:00 通知。课程不自动调换，以课表和学校通知为准。</p></details>
+          </div>
+          <div class="planner-detail">
+            <div class="planner-detail-heading"><h2 id="planner-date-title"></h2><button class="button button-primary" id="add-memo">添加备忘录</button></div>
+            <p id="planner-holiday" class="planner-holiday" hidden></p>
+            <h3>备忘录</h3><div id="planner-memos" class="planner-items"></div>
+            <div class="planner-section-heading"><h3>课程签到</h3><button class="text-button" id="planner-reminders">提醒设置</button></div>
+            <p class="field-hint">按当天实际上课安排标记，记录仅保存在本地。</p><div id="planner-sessions" class="planner-items"></div>
+          </div>
+        </div>
+      </section>
       <section id="qr-view" hidden aria-label="二维码预测">
         <iframe id="qr-frame" title="二维码预测工具" allow="clipboard-write" referrerpolicy="no-referrer"></iframe>
-      </section>
-      <section id="tools-view" hidden aria-label="课程工具">
-        <article class="tools-panel">
-          <div class="tools-heading"><span class="stat-icon coral-icon" data-icon="tools"></span><div><h2>签到与作业</h2><p>从课表定位课程，在课程工具窗口中完成操作。</p></div></div>
-          <label class="field">选择课表中的课程（选填）<select id="tools-course-select" aria-label="课程工具选择课程"></select></label>
-          <p class="field-hint">仅列出已填写 classid 的课程。读取本人登录后，工具会与本人课程列表核对；没有对应编号时不会自动选择其他课程。</p>
-          <div class="tools-ip-note"><strong>用于尝试修改签到和作业提交的记录 IP，效果不稳定。</strong><p>推荐机房 IP 段：<code>10.4.211.xxx</code>、<code>10.4.217.xxx</code>、<code>10.4.209.xxx</code>。<code>xxx</code> 是占位符，使用时请填写完整有效的 IP 地址。</p></div>
-          <div class="tools-actions"><button type="button" class="button button-primary" id="tools-open">打开课程工具</button><button type="button" class="button button-white" id="tools-extension">浏览器扩展文件夹</button></div>
-          <p id="tools-status" class="tools-status" role="status">打开工具和选择课程不会发送签到或上传请求。</p>
-        </article>
-        <article class="tools-panel tools-guide" id="extension-install-guide"><h2>首次安装浏览器扩展</h2><ol><li>点击上方“浏览器扩展文件夹”，保持打开。要选择的是包含 <code>manifest.json</code> 的整个文件夹，不是单个文件。</li><li>在平时登录学校的浏览器地址栏输入：Edge 使用 <code>edge://extensions</code>，Chrome 使用 <code>chrome://extensions</code>。</li><li>打开扩展管理页中的“开发人员模式／开发者模式”，点击“加载解压缩的扩展／加载已解压的扩展程序”，选择刚才打开的扩展文件夹。</li><li>确认“课程主页 HAR 桥接”已启用，并允许访问学校网站和本机连接地址。在同一个浏览器中登录学校 EOL，保持学校标签页打开。</li><li>回到“打开课程工具”，点击“读取本机浏览器登录”。如果默认浏览器不同，用工具的“复制连接链接”，粘贴到已登录且安装了扩展的浏览器中打开。</li></ol><p>移动整个程序文件夹或从旧版迁移后，扩展路径会改变。请在扩展管理中移除失效旧项，再从本目录重新加载；不要删除当前扩展文件夹。</p></article>
-        <article class="tools-panel tools-guide"><h2>签到与作业</h2><ol><li>在同一个课程工具窗口中读取本人登录，或导入本人学生主页的 HAR。核对账号、课程和请求头 IP，再手动发送一次签到请求。</li><li>提交作业时，在窗口中点击“提交实验报告…”，读取任务与当前上传表单，选择文件并核对预览，再点击“上传并提交一次”。支持文件型任务和实验报告，其他类型任务仍在学校网页处理。</li></ol><p>IP 设置写入请求头，不改变真实网络出口。当前设置无法更改报告重交时的平台记录 IP；重交使用平台提供的正常表单。</p><p>课表、提醒、工具、扩展及主动读取的 HAR 均放在程序旁的“课间数据”文件夹内。移动或备份时请带上整个程序文件夹。账号与 Cookie 不进入课表 JSON；课程工具可独立关闭，课表提醒继续运行。</p></article>
       </section>
       <footer class="app-footer"><span>KEJIAN / 课间</span><span>从容规划，高效学习。</span></footer>
     </main>
   </div>
 
+  <dialog id="memo-dialog" class="modal" aria-labelledby="memo-dialog-title">
+    <form id="memo-form">
+      <div class="modal-header"><h2 id="memo-dialog-title">添加备忘录</h2><button type="button" class="icon-button" data-close aria-label="关闭"><span data-icon="close"></span></button></div>
+      <div class="modal-body">
+        <label class="field">标题<input name="title" required maxlength="120" placeholder="例如：提交实验报告"></label>
+        <div class="form-grid notes-field"><label class="field">日期<input name="date" type="date" required min="2000-01-01" max="2100-12-31"></label><label class="field">时间（选填）<input name="time" type="time"></label></div>
+        <label class="unscheduled-control"><input name="remind" type="checkbox">在指定时间提醒</label>
+        <p class="field-hint" id="memo-reminder-hint">提醒按北京时间安排，需开启“提醒设置”中的系统通知。Windows 版需保持程序或托盘运行。</p>
+        <label class="field notes-field">内容<textarea name="notes" rows="4" maxlength="1500" placeholder="记录事项、地点或准备材料"></textarea></label>
+        <div id="memo-error" class="form-error" role="alert" hidden></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="button button-danger-text" id="delete-memo" hidden>删除备忘录</button><div class="footer-right"><button type="button" class="button button-white" data-close>取消</button><button type="submit" class="button button-primary">保存备忘录</button></div></div>
+    </form>
+  </dialog>
   <dialog id="course-dialog" class="modal course-modal" aria-labelledby="course-dialog-title">
     <form id="course-form">
       <div class="modal-header"><div><span class="eyebrow">MAKE ROOM FOR LEARNING</span><h2 id="course-dialog-title">添加课程</h2></div><button type="button" class="icon-button" data-close aria-label="关闭"><span data-icon="close"></span></button></div>
@@ -118,9 +133,9 @@
   <dialog id="confirm-dialog" class="modal confirm-modal" aria-labelledby="confirm-title"><div class="modal-header"><h2 id="confirm-title"></h2><button type="button" class="icon-button" data-close aria-label="取消"><span data-icon="close"></span></button></div><div class="modal-body"><p id="confirm-message"></p></div><div class="modal-footer"><button class="button button-white" data-close>取消</button><button class="button button-primary" id="confirm-action">确认</button></div></dialog>
   <dialog id="help-dialog" class="modal help-modal" aria-labelledby="help-title"><div class="modal-header"><div><span class="eyebrow">HELLO, KEJIAN</span><h2 id="help-title">使用帮助</h2></div><button class="icon-button" data-close aria-label="关闭"><span data-icon="close"></span></button></div><div class="modal-body help-content"><p>本地课程表支持离线使用，可导入课表 JSON，或在课程管理中编辑；未固定时间的实践课和 MOOC 也可保留在课程管理中。</p><div><span class="help-number">01</span><section><h3>先设置学期</h3><p>在「学期设置」中选择第一周的星期一、学期周数和每天的作息时间。</p></section></div><div><span class="help-number">02</span><section><h3>把课程安排好</h3><p>点击「添加课程」，或直接点击课表中的空白节次。支持一周多次上课、单周和双周，冲突的安排会提示修正。</p></section></div><div><span class="help-number">03</span><section><h3>数据保存与备份</h3><p>数据保存在当前浏览器中；移动或重命名网页文件、更换浏览器或清理浏览器数据之前，请「导出课表」。备份是 JSON 数据文件，恢复时请在课程表中点击「导入课表」并选择该文件，无需双击打开。</p></section></div><p class="shortcut-hint"><kbd>N</kbd> 添加课程 <kbd>/</kbd> 搜索课程 <kbd>Esc</kbd> 关闭弹窗</p></div><div class="modal-footer"><button class="button button-primary" data-close>关闭帮助</button></div></dialog>
   <dialog id="reminder-dialog" class="modal reminder-modal" aria-labelledby="reminder-title">
-    <div class="modal-header"><div><span class="eyebrow">TIME FOR CLASS</span><h2 id="reminder-title">桌面提醒</h2></div><button type="button" class="icon-button" data-close aria-label="关闭"><span data-icon="close"></span></button></div>
+    <div class="modal-header"><div><span class="eyebrow">TIME FOR CLASS</span><h2 id="reminder-title">提醒设置</h2></div><button type="button" class="icon-button" data-close aria-label="关闭"><span data-icon="close"></span></button></div>
     <div class="modal-body">
-      <section class="reminder-section" id="native-reminder-section" hidden><label class="reminder-toggle"><span><strong>上课／下课桌面提醒</strong><small>每节上下课各提醒一次，自动使用最新课表</small></span><input type="checkbox" role="switch" id="native-reminders" disabled aria-describedby="native-reminder-status"></label><p id="native-reminder-status" role="status">正在同步课表…</p><button type="button" class="button button-white" id="test-native-reminder">测试通知</button><p>开启后，关闭窗口会收起到右下角托盘，提醒继续运行；右键托盘图标可打开或退出。电脑关机、睡眠期间不会提醒。系统勿扰可能阻止横幅，请先测试确认。</p></section>
+      <section class="reminder-section" id="native-reminder-section" hidden><label class="reminder-toggle"><span><strong>课程与备忘录提醒</strong><small>上下课、备忘录及节假日到时提醒，自动使用最新课表</small></span><input type="checkbox" role="switch" id="native-reminders" disabled aria-describedby="native-reminder-status"></label><p id="native-reminder-status" role="status">正在同步课表…</p><button type="button" class="button button-white" id="test-native-reminder">测试通知</button><p>关闭窗口会收起到右下角托盘；双击托盘图标可恢复，右键可退出程序。开启提醒后，收起窗口时提醒继续运行。电脑关机、睡眠期间不会提醒。系统勿扰可能阻止横幅，请先测试确认。</p></section>
       <section class="reminder-section" id="standalone-reminder-section"><h3>Windows 静态版提醒</h3><p>双击项目文件夹中的 <strong>桌面提醒.cmd</strong>，在打开的窗口勾选「开启上课、下课桌面提醒」，然后点击「测试通知」。每节上课和下课各提醒一次，包含课程、教师和地点。</p><p>工具在右下角托盘运行，关闭网页后仍可提醒；右键托盘图标可关闭或退出。电脑关机或睡眠期间不会提醒。</p><button type="button" class="button button-white" id="export-reminder-plan"><span data-icon="download"></span>导出更新后的提醒计划</button><p class="field-hint">首次使用为空课表。以后在网页修改课程或作息后，请导出提醒计划，再在提醒工具中「载入更新课表」。</p></section>
       <section class="reminder-section" id="browser-reminder-section"><label class="reminder-toggle"><span><strong>浏览器提醒</strong><small>在支持系统通知的网页环境中使用</small></span><input type="checkbox" role="switch" id="browser-reminders" aria-describedby="reminder-status"></label><p id="reminder-status" role="status"></p><button type="button" class="button button-white" id="test-reminder" disabled>测试浏览器通知</button><p class="field-hint">浏览器提醒需要保持网页打开，后台标签页可能延迟。系统勿扰模式或通知设置可能阻止横幅；请先通过测试通知确认。</p></section>
     </div><div class="modal-footer"><button type="button" class="button button-primary" data-close>完成</button></div>
@@ -135,7 +150,7 @@
         <li><h3>选择 JSON，核对后导入</h3><p>已有课间导出的 JSON 可直接使用。文件会先在本机校验，确认导入后才替换当前课表。</p><label class="import-ready"><input type="checkbox" id="import-ready">我已准备好自己的课表文件，或已有导出的课表 JSON</label><div class="import-tools"><button type="button" class="button button-primary" id="choose-import-file" disabled><span data-icon="upload"></span>选择 JSON 文件</button><button type="button" class="button button-white" id="export-before-import">先导出当前课表</button><span id="import-filename" class="field-hint">文件不超过 4 MB</span></div></li>
       </ol>
       <div id="import-error" class="form-error" role="alert" hidden></div>
-      <section id="import-preview" class="import-preview" aria-label="待导入课表预览" hidden><h3>校验通过，请核对这份课表</h3><p id="import-summary" role="status"></p><p id="import-semester-summary"></p><div class="import-preview-scroll"><table><thead><tr><th>课程</th><th>教师／地点</th><th>上课安排</th><th>classid</th></tr></thead><tbody id="import-preview-courses"></tbody></table></div><p class="import-replace-note">确认后将替换当前学期设置和全部课程。建议先导出当前课表。</p></section>
+      <section id="import-preview" class="import-preview" aria-label="待导入课表预览" hidden><h3>校验通过，请核对这份课表</h3><p id="import-summary" role="status"></p><p id="import-semester-summary"></p><div class="import-preview-scroll"><table><thead><tr><th>课程</th><th>教师／地点</th><th>上课安排</th><th>classid</th></tr></thead><tbody id="import-preview-courses"></tbody></table></div><p class="import-replace-note">确认后将替换当前学期、全部课程、备忘录及签到记录；旧文件不含日历时将清空当前日历。建议先导出备份。</p></section>
     </div><div class="modal-footer"><button type="button" class="button button-white" data-close>取消</button><button type="button" class="button button-primary" id="apply-import" disabled>确认导入并替换课表</button></div>
   </dialog>
   <input id="import-file" type="file" accept=".json,application/json" hidden>

@@ -1,4 +1,6 @@
 /* Only included in the Android package; desktop keeps its existing layout. */
+.android-platform .mobile-bottom{grid-template-columns:repeat(6,minmax(0,1fr))}
+.android-platform .planner-layout{grid-template-columns:minmax(0,1fr)}
 .android-platform .sidebar,.android-platform .topbar,.android-platform .below-calendar,.android-platform .app-footer{display:none}
 .android-platform .main-content{margin:0;width:100%;padding:0 14px 90px;min-width:0}
 .android-platform .page-header{padding:18px 0 14px;gap:6px;flex-direction:column;align-items:stretch}
@@ -24,27 +26,49 @@
 .android-platform .modal-body{padding:18px;max-height:60dvh}.android-platform .modal-header{padding:18px}.android-platform .modal-header h2{font-size:23px}
 .android-platform .modal-footer{padding:12px 18px}.android-platform .modal input,.android-platform .modal select,.android-platform .modal textarea{font-size:16px}
 .android-platform .modal-footer .button{min-height:44px}.android-platform .form-grid{grid-template-columns:1fr 1fr}
+.android-platform .course-modal{overflow:hidden}
+.android-platform .course-modal form{max-height:calc(100vh - 26px);max-height:calc(100dvh - 26px)}
+.android-platform .course-modal .modal-body{flex:1 1 auto;min-height:0;max-height:none}
+.android-platform .course-modal .modal-footer{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;flex-shrink:0}
+.android-platform .course-modal .course-footer-actions,.android-platform .course-modal .footer-right{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;min-width:0;margin:0}
+.android-platform .course-modal .course-footer-actions.single-action{grid-template-columns:minmax(0,1fr)}
+.android-platform .course-modal .modal-footer .button{width:100%;min-width:0;justify-content:center;padding:0 8px;white-space:nowrap}
 .android-platform .toast{left:50%;bottom:90px;font-size:14px;width:max-content;max-width:92vw}
 .android-platform .shortcut-hint{display:none}.android-platform #qr-frame{min-height:600px}
 .mobile-bottom{position:fixed;bottom:0;left:0;right:0;height:72px;z-index:20;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid #e7ebf0;padding:5px 8px 7px;box-shadow:0 -3px 14px #34415205}
-.mobile-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:58px;border:0;border-radius:10px;background:transparent;color:#7b8999;font-family:inherit;font-size:13px;line-height:1.3}
+.mobile-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:58px;min-width:0;padding:0 4px;border:0;border-radius:10px;background:transparent;color:#7b8999;font-family:inherit;font-size:13px;line-height:1.3}
+.mobile-tab>span{white-space:nowrap}
 .mobile-tab svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .mobile-tab.active{background:#fcf0eb;color:#be785f}.mobile-menu{display:grid;grid-template-columns:1fr 1fr;gap:12px}.mobile-menu .button{justify-content:center;min-height:56px}
+.mobile-app-version{grid-column:1/-1;margin:8px 0 0;padding-top:14px;border-top:1px solid var(--border);text-align:center;font-size:13px;color:#8b97a4}
 @media(min-width:800px){.android-platform .main-content{max-width:1200px;margin:auto}.android-platform .course-list{grid-template-columns:repeat(2,1fr)}.android-platform .stat-card{flex-direction:row;align-items:center}}
 
-/* The timetable page is only the grid; other actions live under More. */
+/* Keep the week controls above the grid; other actions live under More. */
 .android-platform.timetable-active .page-header,.android-platform.timetable-active .overview,
-.android-platform.timetable-active .calendar-toolbar,.android-platform.timetable-active .calendar-footer,
+.android-platform.timetable-active .calendar-footer,
 .android-platform.timetable-active #filter-status,.android-platform.timetable-active #unscheduled-summary{display:none!important}
-.android-platform.timetable-active .main-content{max-width:none;margin:0;padding:0 0 72px}
-.android-platform.timetable-active .calendar-panel{border:0;border-radius:0;box-shadow:none}
-.android-platform.timetable-active .calendar-scroll{width:100%;overflow-x:hidden}
-.android-platform .calendar{--row-height:clamp(40px,calc((100vh - 112px) / var(--period-count,10)),80px);--row-height:clamp(40px,calc((100dvh - 112px) / var(--period-count,10)),80px)}
+.android-platform.timetable-active .main-content{max-width:none;margin:0;padding:0 0 72px;height:100vh;height:100dvh;display:flex;flex-direction:column}
+.android-platform.timetable-active #storage-warning{flex-shrink:0}
+.android-platform.timetable-active #timetable-view{display:flex;flex-direction:column;flex:1;min-height:0}
+.android-platform.timetable-active .calendar-panel{display:flex;flex-direction:column;flex:1;min-height:0;border:0;border-radius:0;box-shadow:none}
+.android-platform.timetable-active .calendar-toolbar{flex-shrink:0;min-height:52px;padding:4px 8px;flex-wrap:nowrap;border-bottom:1px solid var(--border);background:#fff}
+.android-platform .calendar-tools,.android-platform .week-range{display:none}
+.android-platform.timetable-active .week-controls{width:100%;flex-wrap:nowrap;justify-content:space-between;gap:4px;min-width:0}
+.android-platform.timetable-active .week-select-wrap select{font-size:16px;min-width:84px;width:84px;padding-left:4px;padding-right:18px}
+.android-platform.timetable-active .week-controls .icon-button{flex-shrink:0;width:40px;height:44px}
+.android-platform.timetable-active .today-button{height:44px;margin:0;padding:0 8px;font-size:13px;flex-shrink:0}
+.android-platform.timetable-active .weekend-control{min-height:44px;display:flex;align-items:center;gap:4px;font-size:12px;flex-shrink:0;margin-left:2px}
+.android-platform .calendar.hide-weekends{min-width:0}
+.android-platform #calendar{touch-action:pan-y pinch-zoom}
+.android-platform .calendar-scroll{position:relative}
+.android-platform .calendar.week-dragging,.android-platform .calendar.week-transitioning{will-change:transform;backface-visibility:hidden}
+.android-platform .week-transition-snapshot{position:absolute;top:0;left:0;z-index:1;pointer-events:none;user-select:none;background:#fff;will-change:transform;backface-visibility:hidden}
+.android-platform.timetable-active .calendar-scroll{flex:1;min-height:0;width:100%;overflow-x:hidden;overflow-y:auto}
+.android-platform.timetable-active .calendar{height:100%;min-height:calc(40px + var(--period-count,10) * 32px);grid-template-rows:40px repeat(var(--period-count,10),minmax(32px,1fr))}
 .android-platform .day-header{flex-direction:column;gap:2px;min-width:0;padding:3px 0}
 .android-platform .day-name{font-size:11px;letter-spacing:0}.android-platform .day-date{font-size:12px;width:22px;height:22px;line-height:22px;border-radius:6px}
 .android-platform .day-header.is-today .day-date{width:22px;height:22px;font-size:12px}
 .android-platform .time-corner{flex-direction:column;gap:3px;font-size:9px;line-height:1.2;white-space:nowrap;z-index:4}
-.android-platform .time-corner small{font-size:9px}.android-platform .period-label{gap:3px}
-.android-platform .period-label strong{font-size:11px}.android-platform .period-label small{font-size:8px;line-height:1.2}
-.android-platform .slot{touch-action:manipulation}.mobile-week-settings{grid-column:1/-1;padding-bottom:12px;border-bottom:1px solid var(--border)}
-.mobile-week-settings h3{font-size:15px;margin:0 0 10px}.mobile-week-settings .week-controls{display:flex;justify-content:space-between;gap:2px}
+.android-platform .time-corner small{font-size:9px}.android-platform .period-label{gap:2px;min-height:0;overflow:hidden}
+.android-platform .period-label strong{font-size:11px;line-height:1.1}.android-platform .period-label small{font-size:8px;line-height:1.2}
+.android-platform .slot{touch-action:manipulation}

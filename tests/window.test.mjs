@@ -1,0 +1,30 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { createDemo, validateData } from '../dist/model.mjs';
+
+const root = fileURLToPath(new URL('../', import.meta.url));
+const { version } = JSON.parse(await readFile(path.join(root,'package.json'),'utf8'));
+for (const periods of [10,16]) test(`Windows ${periods} 节课随窗口缩放，关闭时静默驻留托盘并可恢复及退出`, async () => {
+  const table = createDemo(new Date(2026,8,7));
+  table.semester.periods = Array.from({length:periods},(_,index)=>[`${String(6+index).padStart(2,'0')}:00`,`${String(6+index).padStart(2,'0')}:45`]);
+  const profile = path.join(root,'desktop/.test-profile-window-'+periods+'-'+Date.now());
+  await mkdir(profile,{recursive:true});
+  await writeFile(path.join(profile,'timetable.json'),JSON.stringify(validateData(table)));
+  const run = spawnSync(path.join(root,`release/课间课程表-${version}.exe`),['--window-test','--data-dir',profile],{windowsHide:true,timeout:30000});
+  assert.equal(run.error,undefined);
+  const report=JSON.parse((await readFile(path.join(profile,'smoke-result.json'),'utf8')).replace(/^\uFEFF/,''));
+  assert.equal(run.status,0,JSON.stringify(report));
+  assert.equal(report.ok,true);
+  const { sizes,closes }=report.window;
+  assert.ok(sizes[1].width>sizes[0].width && sizes[1].height>sizes[0].height,'放大窗口时课表未放大');
+  assert.ok(sizes[2].width<sizes[1].width && sizes[2].height<sizes[1].height,'缩小窗口时课表未缩小');
+  assert.ok(sizes[1].titleFont>=sizes[0].titleFont,'字体未随窗口调整');
+  assert.deepEqual(closes.map(item=>item.enabled),[false,true]);
+  for(const close of closes) assert.deepEqual(close,{enabled:close.enabled,hidden:true,trayVisible:true,restored:true,closeNotifications:0});
+  assert.equal(report.window.maximizedRestored,true);
+  console.log(JSON.stringify({periods,grids:sizes.map(item=>[item.width,item.height]),closes,exited:true,profile}));
+});

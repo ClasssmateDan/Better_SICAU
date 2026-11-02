@@ -39,8 +39,8 @@ public final class ReminderReceiver extends BroadcastReceiver {
     }
     static void notify(Context context, String title, String body, int id) {
         NotificationManager manager = context.getSystemService(NotificationManager.class);
-        NotificationChannel channel = new NotificationChannel(CHANNEL, "上下课提醒", NotificationManager.IMPORTANCE_HIGH);
-        channel.setDescription("按课表在每节上课和下课时提醒"); manager.createNotificationChannel(channel);
+        NotificationChannel channel = new NotificationChannel(CHANNEL, "课程与日历提醒", NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("按课表、备忘录及节假日时间提醒"); manager.createNotificationChannel(channel);
         if (!canNotify(context)) return;
         PendingIntent open = PendingIntent.getActivity(context, 2, new Intent(context, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Notification notice = new Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_notification)
@@ -58,7 +58,7 @@ public final class ReminderReceiver extends BroadcastReceiver {
                     preferences(context).edit().putLong("deliveredAt", at).commit();
                     StringBuilder body = new StringBuilder();
                     for (ReminderSchedule.Event event : due) { if (body.length() > 0) body.append("\n\n"); body.append(event.body); }
-                    notify(context, due.size() == 1 ? due.get(0).title : "课间 · 课程提醒", body.toString(), (int) (at / 1000));
+                    notify(context, due.size() == 1 ? due.get(0).title : "课间 · 日程提醒", body.toString(), (int) (at / 1000));
                 }
             }
             schedule(context);

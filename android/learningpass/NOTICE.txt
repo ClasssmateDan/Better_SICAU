@@ -1,0 +1,19 @@
+课间课程表 · 学习通签到
+Integrated from 码序签到 0.1.5; native UI adapted to the timetable theme.
+
+This app uses ZXing core 3.5.3, Copyright ZXing authors,
+licensed under the Apache License, Version 2.0.
+https://github.com/zxing/zxing
+See licenses/zxing-Apache-2.0.txt.
+
+This app uses jsoup 1.18.3, Copyright Jonathan Hedley and contributors,
+licensed under the MIT License.
+https://jsoup.org/
+See licenses/jsoup-MIT.txt.
+
+The historical Chaoxing protocol adapter is based on cxOrz/chaoxing-signin,
+Copyright (c) 2023 cxOrz, licensed under the MIT License.
+https://github.com/cxOrz/chaoxing-signin
+See licenses/chaoxing-signin-MIT.txt.
+
+This application is an independent local tool. It is not an official Chaoxing application.

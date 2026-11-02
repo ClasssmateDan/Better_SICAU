@@ -37,6 +37,7 @@ namespace KeJianDesktop {
                     string[] parts=line.Split('\t');
                     if(parts.Length!=2 || !Regex.IsMatch(parts[0],@"\A[0-9a-f]{64}\z")) return null;
                     string relative=parts[1];
+                    // Recognize old release manifests only for migration; no retired feature is loaded.
                     bool allowed=new [] { "manifest.json", "background.js", "connect.js", "har_format.js", "help.html" }.Any(name=>relative=="course-tools/browser-extension/"+name)
                         || relative=="course-tools/课程工具使用说明.md" || relative=="course-tools/课程工具第三方许可.txt"
                         || Regex.IsMatch(relative,@"\Aruntime/[0-9]+\.[0-9]+\.[0-9]+/course-tools/KeJianCourseTools\.exe\z");
@@ -48,7 +49,7 @@ namespace KeJianDesktop {
                     string parent=Path.GetDirectoryName(local);
                     while(!String.IsNullOrEmpty(parent)) { allowedDirectories.Add(parent); parent=Path.GetDirectoryName(parent); }
                 }
-                if(hashes.Count==0 || !new HashSet<string>(files,StringComparer.OrdinalIgnoreCase).SetEquals(hashes.Keys.Concat(new [] {BundleMarker})) || directories.Any(name=>!allowedDirectories.Contains(name))) return null;
+                if(!new HashSet<string>(files,StringComparer.OrdinalIgnoreCase).SetEquals(hashes.Keys.Concat(new [] {BundleMarker})) || directories.Any(name=>!allowedDirectories.Contains(name))) return null;
                 hashes.Add(BundleMarker,Digest(marker));
                 return new BundleAssets {Root=folder,Directories=directories,Hashes=hashes};
             } catch(IOException) { return null; } catch(UnauthorizedAccessException) { return null; }
@@ -109,7 +110,7 @@ namespace KeJianDesktop {
                     foreach(string name in new [] { LegacyMutexName(source,false), LegacyMutexName(Path.Combine(source,"course-tools"),true) }) {
                         bool created;
                         Mutex mutex=new Mutex(true,name,out created);
-                        if(!created) { mutex.Dispose(); throw new IOException("请先从托盘退出旧版课间，并关闭旧课程工具，再重新打开新版迁移数据。"); }
+                        if(!created) { mutex.Dispose(); throw new IOException("请先从托盘退出旧版课间及其附带程序，再重新打开新版迁移数据。"); }
                         held.Add(mutex);
                     }
                 } catch { Dispose(); throw; }
@@ -149,7 +150,7 @@ namespace KeJianDesktop {
                 bool sameVolume = String.Equals(Path.GetPathRoot(source), Path.GetPathRoot(target), StringComparison.OrdinalIgnoreCase);
                 if (sameVolume && !forceCopyForTest) {
                     try { ChildOf(app,target); Directory.Move(source,target); }
-                    catch (IOException error) { throw new IOException("旧数据仍被占用或无法移动。请退出旧版及课程工具后重试，原数据未被覆盖。",error); }
+                    catch (IOException error) { throw new IOException("旧数据仍被占用或无法移动。请退出旧版程序后重试，原数据未被覆盖。",error); }
                     result.Migrated = true;
                 } else {
                     CopyMigration(app,source,target,directories,files,result);
@@ -167,7 +168,7 @@ namespace KeJianDesktop {
             }
             Directory.CreateDirectory(target); EnsureWritable(target);
             string marker = Path.Combine(target,"便携目录说明.txt");
-            if (!File.Exists(marker)) File.WriteAllText(marker,"课间课程表便携数据目录\r\n课表、提醒、浏览器配置、课程工具和扩展都位于此目录。\r\n移动或备份时，请带上 EXE 和整个“课间数据”文件夹。\r\n",new UTF8Encoding(false));
+            if (!File.Exists(marker)) File.WriteAllText(marker,"课间课程表便携数据目录\r\n课表、提醒和浏览器配置都位于此目录。\r\n移动或备份时，请带上 EXE 和整个“课间数据”文件夹。\r\n",new UTF8Encoding(false));
             return result;
         }
         private static void CopyMigration(string app,string source,string target,List<string> directories,List<string> files,PortableDataResult result) {

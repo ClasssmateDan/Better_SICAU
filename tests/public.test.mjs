@@ -1,3 +1,4 @@
+import { createHolidayEvents } from '../dist/holidays.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -8,13 +9,13 @@ import { parseTimetableFile, exportTimetableFile } from '../dist/transfer.mjs';
 import { buildStatic } from '../scripts/build.mjs';
 import { createRequire } from 'node:module';
 
-test('公开版默认和重置模板均为零课程、零学分及零提醒', () => {
+test('公开版默认和重置模板均为零课程、零学分，并内置公共节假日提醒', () => {
   const data = createPreset();
   assert.deepEqual(validateData(data), data);
   assert.deepEqual(data.courses, []);
   assert.equal(data.semester.name, '新学期');
   assert.deepEqual(CLASSID_REFERENCE, []);
-  assert.deepEqual(createReminderPlan(data).events, []);
+  assert.deepEqual(createReminderPlan(data).events, createHolidayEvents());
   assert.deepEqual(parseTimetableFile(exportTimetableFile(data)), data);
 });
 

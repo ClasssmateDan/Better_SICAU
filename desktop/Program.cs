@@ -17,19 +17,20 @@ using Microsoft.Web.WebView2.WinForms;
 
 [assembly: AssemblyTitle("课间课程表")]
 [assembly: AssemblyProduct("课间课程表")]
-[assembly: AssemblyVersion("1.7.4.0")]
-[assembly: AssemblyFileVersion("1.7.4.0")]
+[assembly: AssemblyVersion("1.9.1.0")]
+[assembly: AssemblyFileVersion("1.9.1.0")]
 
 namespace KeJianDesktop {
     internal static class Program {
         internal static string DataRoot;
         internal static bool SmokeTest;
+        internal static bool CalendarTest;
         internal static string BackupTest;
         internal static string QrTest;
         internal static string CourseTest;
         internal static string ImportTest;
-        internal static string ToolTest;
         internal static bool LayoutTest;
+        internal static bool WindowTest;
         internal static int Result;
         private static readonly SemaphoreSlim browserEnvironmentLock = new SemaphoreSlim(1, 1);
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
@@ -66,7 +67,7 @@ namespace KeJianDesktop {
             }
         }
         private static void PrepareRuntime() {
-            string sdk = Path.Combine(DataRoot, "runtime", "1.7.4", "sdk");
+            string sdk = Path.Combine(DataRoot, "runtime", "1.9.1", "sdk");
             Directory.CreateDirectory(sdk);
             string loader = Path.Combine(sdk, "WebView2Loader.dll");
             byte[] bytes = Resource("WebView2Loader.dll");
@@ -87,7 +88,9 @@ namespace KeJianDesktop {
                 for (int i = 0; i < args.Length; i++) {
                     if (args[i] == "--data-dir" && i + 1 < args.Length) { DataRoot = Path.GetFullPath(args[++i]); customDataDirectory = true; }
                     else if (args[i] == "--smoke-test") SmokeTest = true;
+                    else if (args[i] == "--calendar-test") { CalendarTest = true; SmokeTest = true; }
                     else if (args[i] == "--layout-test") { LayoutTest = true; SmokeTest = true; }
+                    else if (args[i] == "--window-test") { WindowTest = true; SmokeTest = true; }
                     else if (args[i] == "--backup-test" && i + 1 < args.Length) {
                         BackupTest = args[++i]; SmokeTest = true;
                         if (!new string[] { "save", "cancel", "error", "extension" }.Contains(BackupTest)) throw new ArgumentException("未知备份测试模式。");
@@ -103,10 +106,6 @@ namespace KeJianDesktop {
                     else if (args[i] == "--import-test" && i + 1 < args.Length) {
                         ImportTest = args[++i]; SmokeTest = true;
                         if (!new string[] { "flow", "concurrent", "guide", "example", "guide-cancel", "guide-extension" }.Contains(ImportTest)) throw new ArgumentException("未知导入测试模式。");
-                    }
-                    else if (args[i] == "--tools-test" && i + 1 < args.Length) {
-                        ToolTest = args[++i]; SmokeTest = true;
-                        if (ToolTest != "flow") throw new ArgumentException("未知课程工具测试模式。");
                     }
                     else throw new ArgumentException("未知参数：" + args[i]);
                 }
@@ -161,6 +160,7 @@ namespace KeJianDesktop {
         private bool ready;
         private bool pageLoaded;
         private bool quitting;
+        private int notificationRequests;
         private bool checkingSmoke;
         private long lastCheck;
         private readonly long startedAt;
@@ -171,8 +171,6 @@ namespace KeJianDesktop {
         private QrBrowserWindow qrBrowser;
         private object qrOpenResult;
         private object transferExportResult;
-        private readonly CourseToolHost courseTools = new CourseToolHost();
-        private object courseToolResult;
 
         internal TimetableWindow() {
             Text = "课间 · 课程表";
@@ -201,13 +199,13 @@ namespace KeJianDesktop {
             Controls.Add(browser); Controls.Add(loading);
             ContextMenuStrip menu = new ContextMenuStrip();
             menu.Items.Add("打开课程表", null, delegate { ShowTimetable(); });
-            reminderMenu = new ToolStripMenuItem("上课／下课提醒") { CheckOnClick = true, Checked = settings.remindersEnabled };
+            reminderMenu = new ToolStripMenuItem("课程与备忘录提醒") { CheckOnClick = true, Checked = settings.remindersEnabled };
             reminderMenu.Click += delegate { SetReminders(reminderMenu.Checked); };
             menu.Items.Add(reminderMenu);
             menu.Items.Add("测试通知", null, delegate { Notify("课间 · 测试通知", "上课、下课时将在桌面右下角显示提醒。"); });
             menu.Items.Add("关于课间", null, delegate {
-                using (Form about = new Form { Text = "关于课间课程表 1.7.4", ClientSize = new Size(640, 460), StartPosition = FormStartPosition.CenterParent }) {
-                    about.Controls.Add(new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei UI", 10), Text = "课间课程表 1.7.4\r\n离线课表管理、二维码预测与上下课提醒\r\n\r\nMicrosoft WebView2 SDK 1.0.4258.31\r\n\r\n" + Encoding.UTF8.GetString(Program.Resource("WebView2.LICENSE.txt")) + "\r\n\r\n" + Encoding.UTF8.GetString(Program.Resource("QR-LICENSES.txt")) });
+                using (Form about = new Form { Text = "关于课间课程表 1.9.1", ClientSize = new Size(640, 460), StartPosition = FormStartPosition.CenterParent }) {
+                    about.Controls.Add(new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei UI", 10), Text = "课间课程表 1.9.1\r\n离线课表管理、二维码预测与上下课提醒\r\n\r\nMicrosoft WebView2 SDK 1.0.4258.31\r\n\r\n" + Encoding.UTF8.GetString(Program.Resource("WebView2.LICENSE.txt")) + "\r\n\r\n" + Encoding.UTF8.GetString(Program.Resource("QR-LICENSES.txt")) });
                     about.ShowDialog(this);
                 }
             });
@@ -227,7 +225,7 @@ namespace KeJianDesktop {
 
         private async Task InitializeBrowser() {
             try {
-                string assets = Path.Combine(Program.DataRoot, "runtime", "1.7.4", "assets");
+                string assets = Path.Combine(Program.DataRoot, "runtime", "1.9.1", "assets");
                 Directory.CreateDirectory(assets);
                 File.WriteAllBytes(Path.Combine(assets, "index.html"), Program.Resource("index.html"));
                 CoreWebView2Environment env = await Program.CreateBrowserEnvironment(Path.Combine(Program.DataRoot, "WebView2"));
@@ -260,7 +258,7 @@ namespace KeJianDesktop {
                 if (File.Exists(timetablePath)) {
                     try { recovered = DesktopReminders.Json.DeserializeObject(File.ReadAllText(timetablePath, Encoding.UTF8)); } catch { }
                 }
-                string bootstrap = DesktopReminders.Json.Serialize(new { desktop = true, courseTools = true, timetable = recovered, remindersEnabled = settings.remindersEnabled });
+                string bootstrap = DesktopReminders.Json.Serialize(new { desktop = true, timetable = recovered, remindersEnabled = settings.remindersEnabled });
                 await core.AddScriptToExecuteOnDocumentCreatedAsync("if (window === window.top) window.__KEJIAN_DESKTOP__ = JSON.parse(" + DesktopReminders.Json.Serialize(bootstrap) + ");");
                 if (Program.CourseTest == "migration") {
                     if (recovered == null) throw new InvalidDataException("旧版迁移测试缺少课表快照。");
@@ -293,7 +291,7 @@ namespace KeJianDesktop {
                 Send(new { type = "desktop:error", message = "提醒开关未保存：" + error.Message });
             }
             reminderMenu.Checked = settings.remindersEnabled;
-            tray.Text = settings.remindersEnabled ? "课间 · 上下课提醒已开启" : "课间 · 上下课提醒已关闭";
+            tray.Text = settings.remindersEnabled ? "课间 · 系统提醒已开启" : "课间 · 系统提醒已关闭";
             SendState();
         }
         private void OnWebMessage(object sender, CoreWebView2WebMessageReceivedEventArgs e) {
@@ -301,14 +299,16 @@ namespace KeJianDesktop {
             if (!Uri.TryCreate(e.Source, UriKind.Absolute, out source) || source.Scheme != "https" || source.Host != "kejian.local" || source.AbsolutePath != "/index.html") return;
             try {
                 string json = e.WebMessageAsJson;
-                if (json.Length > 4000000) throw new InvalidDataException("课表数据过大。");
+                if (json.Length > 16000000) throw new InvalidDataException("课表数据过大。");
                 Dictionary<string, object> message = DesktopReminders.Json.Deserialize<Dictionary<string, object>>(json);
                 string type = message.ContainsKey("type") ? message["type"] as string : null;
                 if (type == "timetable:sync") {
                     Dictionary<string, object> data = message["data"] as Dictionary<string, object>;
                     if (data == null || !data.ContainsKey("version") || Convert.ToInt32(data["version"]) != 1 || !data.ContainsKey("courses") || !data.ContainsKey("semester")) throw new InvalidDataException("课表格式不正确。");
+                    string timetableJson = DesktopReminders.Json.Serialize(data);
+                    if (Encoding.UTF8.GetByteCount(timetableJson) > 4000000) throw new InvalidDataException("课表及日历数据超过 4 MB。");
                     ReminderPlan updated = DesktopReminders.ParsePlan(DesktopReminders.Json.Serialize(message["plan"]));
-                    Program.WriteAtomic(timetablePath, DesktopReminders.Json.Serialize(data));
+                    Program.WriteAtomic(timetablePath, timetableJson);
                     Program.WriteAtomic(planPath, DesktopReminders.Json.Serialize(updated));
                     plan = updated; ready = true;
                     SendState();
@@ -317,7 +317,6 @@ namespace KeJianDesktop {
                 else if (type == "backup:export") ExportBackup(message);
                 else if (type == "qr:image-export") ExportQrImage(message);
                 else if (type == "qr:open") OpenQrPage(message);
-                else if (type == "course-tools:open") OpenCourseTools(message);
                 else if (type == "app:ready") SendState();
             } catch (Exception error) {
                 settings.remindersEnabled = false;
@@ -334,17 +333,6 @@ namespace KeJianDesktop {
             Send(new { type = "backup:result", status = "error", message = "请使用程序中的“导出备份”保存数据。" });
         }
 
-        private async void OpenCourseTools(Dictionary<string, object> message) {
-            object result;
-            try {
-                if (!ready || !File.Exists(timetablePath)) throw new InvalidOperationException("课表仍在载入，请稍后再试。");
-                result = await courseTools.OpenAsync(message, File.ReadAllText(timetablePath, Encoding.UTF8));
-            } catch (Exception error) {
-                result = new { type = "course-tools:result", status = "error", message = "课程工具未打开：" + error.Message };
-            }
-            courseToolResult = result;
-            if (!IsDisposed && !Disposing) Send(result);
-        }
         private void ExportBackup(Dictionary<string, object> message) {
             object result;
             string kind = message.ContainsKey("kind") ? message["kind"] as string : "backup";
@@ -424,7 +412,7 @@ namespace KeJianDesktop {
             if (Program.QrTest != null) qrTestResult = result;
             Send(result);
         }
-        private void Notify(string title, string body) { tray.ShowBalloonTip(10000, title, body.Length > 255 ? body.Substring(0, 252) + "…" : body, ToolTipIcon.Info); }
+        private void Notify(string title, string body) { notificationRequests++; tray.ShowBalloonTip(10000, title, body.Length > 255 ? body.Substring(0, 252) + "…" : body, ToolTipIcon.Info); }
         private async void OpenQrPage(Dictionary<string, object> message) {
             object result;
             try {
@@ -439,7 +427,58 @@ namespace KeJianDesktop {
             if (Program.QrTest == "open" || Program.QrTest == "open-error" || Program.CourseTest == "open") qrOpenResult = result;
             if (!IsDisposed && !Disposing) Send(result);
         }
-        private void ShowTimetable() { Show(); WindowState = FormWindowState.Normal; Activate(); }
+        private void ShowTimetable() { Show(); if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Activate(); }
+
+        private async Task<object> CheckWindowBehavior() {
+            List<object> sizes = new List<object>();
+            foreach (Size size in new Size[] { new Size(1000, 640), new Size(1440, 960), new Size(1120, 720) }) {
+                ClientSize = size;
+                await Task.Delay(220);
+                string encoded = await browser.CoreWebView2.ExecuteScriptAsync(@"JSON.stringify((function() {
+                    const grid=document.getElementById('calendar'),r=grid.getBoundingClientRect(),area=document.querySelector('.calendar-scroll');
+                    const labels=grid.querySelectorAll('.period-label'),sidebar=document.querySelector('.sidebar');
+                    return {viewportWidth:innerWidth,viewportHeight:innerHeight,width:r.width,height:r.height,bottom:r.bottom,
+                        contentWidth:grid.scrollWidth,contentHeight:grid.scrollHeight,areaWidth:area.clientWidth,areaHeight:area.clientHeight,
+                        pageWidth:document.documentElement.scrollWidth,pageHeight:document.documentElement.scrollHeight,
+                        sidebarContentHeight:sidebar.scrollHeight,sidebarHeight:sidebar.clientHeight,
+                        lastPeriodBottom:labels[labels.length-1].getBoundingClientRect().bottom,
+                        titleFont:parseFloat(getComputedStyle(grid.querySelector('.event-title')).fontSize)};
+                })())");
+                Dictionary<string, object> metrics = DesktopReminders.Json.Deserialize<Dictionary<string, object>>(DesktopReminders.Json.Deserialize<string>(encoded));
+                if (Convert.ToDouble(metrics["width"]) < 200 || Convert.ToDouble(metrics["height"]) < 100
+                    || Convert.ToDouble(metrics["contentWidth"]) > Convert.ToDouble(metrics["areaWidth"]) + 1
+                    || Convert.ToDouble(metrics["contentHeight"]) > Convert.ToDouble(metrics["areaHeight"]) + 1
+                    || Convert.ToDouble(metrics["pageWidth"]) > Convert.ToDouble(metrics["viewportWidth"]) + 1
+                    || Convert.ToDouble(metrics["pageHeight"]) > Convert.ToDouble(metrics["viewportHeight"]) + 1
+                    || Convert.ToDouble(metrics["sidebarContentHeight"]) > Convert.ToDouble(metrics["sidebarHeight"]) + 1
+                    || Math.Abs(Convert.ToDouble(metrics["lastPeriodBottom"]) - Convert.ToDouble(metrics["bottom"])) > 1)
+                    throw new InvalidOperationException("窗口缩放后课表未完整适配：" + DesktopReminders.Json.Serialize(metrics));
+                sizes.Add(metrics);
+                using (FileStream preview = File.Create(Path.Combine(Program.DataRoot, "window-" + size.Width + "x" + size.Height + ".png")))
+                    await browser.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, preview);
+            }
+            List<object> closes = new List<object>();
+            bool previousEnabled = settings.remindersEnabled;
+            foreach (bool enabled in new bool[] { false, true }) {
+                SetReminders(enabled);
+                int previousNotifications = notificationRequests;
+                Close();
+                await Task.Delay(80);
+                if (IsDisposed || Visible || !tray.Visible || !timer.Enabled || settings.remindersEnabled != enabled || notificationRequests != previousNotifications)
+                    throw new InvalidOperationException("关闭窗口未静默收起到托盘，或提醒状态发生变化。");
+                ShowTimetable();
+                if (!Visible || IsDisposed) throw new InvalidOperationException("托盘未能恢复主窗口。");
+                closes.Add(new { enabled = enabled, hidden = true, trayVisible = tray.Visible, restored = Visible, closeNotifications = notificationRequests - previousNotifications });
+            }
+            WindowState = FormWindowState.Maximized;
+            await Task.Delay(80);
+            Close();
+            ShowTimetable();
+            if (WindowState != FormWindowState.Maximized) throw new InvalidOperationException("从托盘恢复时丢失了最大化状态。");
+            WindowState = FormWindowState.Normal;
+            SetReminders(previousEnabled);
+            return new { ok = true, sizes = sizes, closes = closes, maximizedRestored = true };
+        }
         private async void Tick() {
             long now = DesktopReminders.Now();
             long after = lastCheck; lastCheck = now;
@@ -457,8 +496,26 @@ namespace KeJianDesktop {
                     object courseReport = null;
                     object courseOpenReport = null;
                     object importReport = null;
-                    object toolReport = null;
                     object layoutReport = null;
+                    object calendarReport = null;
+                    object windowReport = null;
+                    if (Program.WindowTest) windowReport = await CheckWindowBehavior();
+                    if (Program.CalendarTest) {
+                        await browser.CoreWebView2.ExecuteScriptAsync(Encoding.UTF8.GetString(Program.Resource("CalendarSmoke.js")));
+                        string calendarJson = null;
+                        for (int wait = 0; wait < 100; wait++) {
+                            string value = await browser.CoreWebView2.ExecuteScriptAsync("window.__calendarSmoke?JSON.stringify(window.__calendarSmoke):null");
+                            if (value != "null") { calendarJson = DesktopReminders.Json.Deserialize<string>(value); break; }
+                            await Task.Delay(100);
+                        }
+                        if (calendarJson == null) throw new InvalidOperationException("日历验证超时。");
+                        Dictionary<string, object> report = DesktopReminders.Json.Deserialize<Dictionary<string, object>>(calendarJson);
+                        if (!(bool)report["ok"]) throw new InvalidOperationException(calendarJson);
+                        calendarReport = report;
+                        for (int wait = 0; wait < 50 && !plan.events.Any(item => item.id.StartsWith("memo|")); wait++) await Task.Delay(100);
+                        if (!plan.events.Any(item => item.id.StartsWith("memo|"))) throw new InvalidOperationException("备忘录未同步到原生提醒计划。");
+                        using (FileStream preview = File.Create(Path.Combine(Program.DataRoot, "calendar-preview.png"))) await browser.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, preview);
+                    }
                     if (Program.LayoutTest) {
                         await browser.CoreWebView2.ExecuteScriptAsync(Encoding.UTF8.GetString(Program.Resource("LayoutSmoke.js")));
                         string layoutJson = null;
@@ -472,20 +529,6 @@ namespace KeJianDesktop {
                         if(!(bool)report["ok"])throw new InvalidOperationException(layoutJson);
                         layoutReport=report;
                         using(FileStream preview=File.Create(Path.Combine(Program.DataRoot,"homepage-preview.png")))await browser.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png,preview);
-                    }
-                    if (Program.ToolTest != null) {
-                        await browser.CoreWebView2.ExecuteScriptAsync(Encoding.UTF8.GetString(Program.Resource("ToolSmoke.js")));
-                        string toolJson = null;
-                        for (int wait = 0; wait < 250; wait++) {
-                            string value = await browser.CoreWebView2.ExecuteScriptAsync("window.__toolSmoke ? JSON.stringify(window.__toolSmoke) : null");
-                            if (value != "null") { toolJson = DesktopReminders.Json.Deserialize<string>(value); break; }
-                            await Task.Delay(100);
-                        }
-                        if (toolJson == null) throw new InvalidOperationException("课程工具验证超时。");
-                        Dictionary<string, object> report = DesktopReminders.Json.Deserialize<Dictionary<string, object>>(toolJson);
-                        if (!(bool)report["ok"]) throw new InvalidOperationException(toolJson);
-                        toolReport = report;
-                        using (FileStream preview = File.Create(Path.Combine(Program.DataRoot, "course-tools-preview.png"))) await browser.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, preview);
                     }
                     if (Program.ImportTest != null) {
                         await browser.CoreWebView2.ExecuteScriptAsync("window.__IMPORT_TEST_MODE__ = " + DesktopReminders.Json.Serialize(Program.ImportTest) + "; window.__IMPORT_TEST_EXAMPLE__ = JSON.parse(" + DesktopReminders.Json.Serialize(Encoding.UTF8.GetString(Program.Resource("import-example.json"))) + ");");
@@ -514,8 +557,8 @@ namespace KeJianDesktop {
                             await Task.Delay(100);
                         }
                         if (Program.ImportTest == "flow") {
-                            for (int wait = 0; wait < 30 && plan.events.Count != 96; wait++) await Task.Delay(100);
-                            if (plan.events.Count != 96) throw new InvalidOperationException("导入课表未同步到原生提醒计划。");
+                            for (int wait = 0; wait < 30 && plan.events.Count(item => !item.id.StartsWith("holiday|")) != 96; wait++) await Task.Delay(100);
+                            if (plan.events.Count(item => !item.id.StartsWith("holiday|")) != 96) throw new InvalidOperationException("导入课表未同步到原生提醒计划。");
                         }
                         using (FileStream preview = File.Create(Path.Combine(Program.DataRoot, "import-preview.png"))) await browser.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, preview);
                     }
@@ -607,10 +650,12 @@ namespace KeJianDesktop {
                     int persistedCount = 0;
                     foreach (object item in (IEnumerable)persisted["courses"]) persistedCount++;
                     bool ok = (string)dom["courses"] == persistedCount.ToString() && (bool)dom["nativeVisible"];
-                    File.WriteAllText(Path.Combine(Program.DataRoot, "smoke-result.json"), DesktopReminders.Json.Serialize(new { ok = ok, dataRoot = Program.DataRoot, layout = layoutReport, dom = dom, tools = toolReport, toolResult = courseToolResult, backup = backupTestResult, imports = importReport, transferExport = transferExportResult, qr = qrReport, courses = courseReport, courseOpen = courseOpenReport, qrExport = qrTestResult, qrOpen = qrOpenReport, qrOpenResult = qrOpenResult, qrNetworkRequests = qrNetworkRequests, browserDownloads = browserDownloads, planEvents = plan.events.Count, webviewVersion = browser.CoreWebView2.Environment.BrowserVersionString, saved = File.Exists(timetablePath) }), Encoding.UTF8);
-                    Program.Result = ok ? 0 : 1; quitting = true; Close();
+                    File.WriteAllText(Path.Combine(Program.DataRoot, "smoke-result.json"), DesktopReminders.Json.Serialize(new { ok = ok, dataRoot = Program.DataRoot, layout = layoutReport, calendar = calendarReport, window = windowReport, dom = dom, backup = backupTestResult, imports = importReport, transferExport = transferExportResult, qr = qrReport, courses = courseReport, courseOpen = courseOpenReport, qrExport = qrTestResult, qrOpen = qrOpenReport, qrOpenResult = qrOpenResult, qrNetworkRequests = qrNetworkRequests, browserDownloads = browserDownloads, planEvents = plan.events.Count, webviewVersion = browser.CoreWebView2.Environment.BrowserVersionString, saved = File.Exists(timetablePath) }), Encoding.UTF8);
+                    Program.Result = ok ? 0 : 1;
+                    if (Program.WindowTest) ((ToolStripMenuItem)tray.ContextMenuStrip.Items[tray.ContextMenuStrip.Items.Count - 1]).PerformClick();
+                    else { quitting = true; Close(); }
                 }
-                if (Program.SmokeTest && now - startedAt > (Program.ToolTest != null ? 45000 : 30000)) Fail("桌面启动验证超时。");
+                if (Program.SmokeTest && now - startedAt > 30000) Fail("桌面启动验证超时。");
             } catch (Exception error) { Fail(error.ToString()); }
         }
         private void Fail(string message) {
@@ -625,13 +670,14 @@ namespace KeJianDesktop {
             }
         }
         protected override void OnFormClosing(FormClosingEventArgs e) {
-            if (!quitting && e.CloseReason == CloseReason.UserClosing && settings.remindersEnabled) {
-                e.Cancel = true; Hide(); Notify("课间 · 已收起到托盘", "上课和下课提醒继续运行。右键右下角课间图标可退出程序。");
+            if (!quitting && e.CloseReason == CloseReason.UserClosing) {
+                e.Cancel = true;
+                Hide();
             }
             base.OnFormClosing(e);
         }
         protected override void Dispose(bool disposing) {
-            if (disposing) { courseTools.StopSmoke(); timer.Stop(); timer.Dispose(); tray.Visible = false; tray.Dispose(); if (qrBrowser != null) qrBrowser.Dispose(); browser.Dispose(); }
+            if (disposing) { timer.Stop(); timer.Dispose(); tray.Visible = false; tray.Dispose(); if (qrBrowser != null) qrBrowser.Dispose(); browser.Dispose(); }
             base.Dispose(disposing);
         }
     }

@@ -57,6 +57,50 @@ export function sessionsForWeek(courses, week) {
     .sort((a, b) => a.meeting.day - b.meeting.day || a.meeting.start - b.meeting.start || a.course.name.localeCompare(b.course.name, 'zh-CN'));
 }
 
+export function sessionsForDate(timetable, date) {
+  const day = typeof date === 'string' ? parseDate(date) : date;
+  const week = weekForDate(day, timetable.semester);
+  if (week < 1 || week > timetable.semester.weeks) return [];
+  return sessionsForWeek(timetable.courses, week).filter(({ meeting }) => meeting.day === ((day.getDay() + 6) % 7) + 1);
+}
+
+export function attendanceKey(record) {
+  return JSON.stringify([record.date, record.courseId, record.start, record.end]);
+}
+
+export function validateCalendar(input) {
+  if (!input || typeof input !== 'object' || !Array.isArray(input.memos) || !Array.isArray(input.attendance)
+    || input.memos.length > 2000 || input.attendance.length > 10000) throw new Error('日历格式不正确（最多 2000 条备忘录、10000 条签到记录）');
+  const calendarDate = value => {
+    parseDate(value);
+    if (value < '2000-01-01' || value > '2100-12-31') throw new Error('日历日期应在 2000–2100 年之间');
+    return value;
+  };
+  const memos = input.memos.map(memo => {
+    if (!memo || typeof memo !== 'object') throw new Error('备忘录格式不正确');
+    const id = safeText(memo.id, '备忘录编号', 100);
+    const title = safeText(memo.title, '备忘录标题', 120);
+    const date = calendarDate(memo.date);
+    const time = memo.time ?? '';
+    const remind = memo.remind ?? false;
+    if (typeof time !== 'string' || time !== '' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error('备忘录时间格式应为 HH:mm');
+    if (typeof remind !== 'boolean' || remind && !time) throw new Error('设置备忘录提醒时需要填写具体时间');
+    return { id, title, date, time, remind, notes: safeText(memo.notes ?? '', '备忘录内容', 1500, true) };
+  });
+  // Course names and periods are snapshots, so historical marks survive course edits and deletion.
+  const attendance = input.attendance.map(record => {
+    if (!record || typeof record !== 'object') throw new Error('签到记录格式不正确');
+    if (record.courseColor !== undefined && !COLORS.includes(record.courseColor)) throw new Error('签到记录的课程颜色不正确');
+    return { date: calendarDate(record.date), courseId: safeText(record.courseId, '签到课程编号', 100),
+      courseName: safeText(record.courseName, '签到课程名称', 60),
+      ...(record.courseColor !== undefined ? { courseColor: record.courseColor } : {}),
+      start: boundedInteger(record.start, 1, 16, '签到开始节次'), end: boundedInteger(record.end, record.start, 16, '签到结束节次') };
+  });
+  if (new Set(memos.map(memo => memo.id)).size !== memos.length) throw new Error('备忘录编号重复');
+  if (new Set(attendance.map(attendanceKey)).size !== attendance.length) throw new Error('同一日期的同一节课存在重复签到记录');
+  return { memos, attendance };
+}
+
 export function minutes(value) {
   const [hours, mins] = value.split(':').map(Number);
   return hours * 60 + mins;
@@ -170,7 +214,7 @@ export function validateData(input) {
   for (const course of courses) {
     if (findConflicts(course, courses, semester).length) throw new Error(`「${course.name}」存在时间冲突，请修正后再导入`);
   }
-  return { version: 1, semester, courses };
+  return { version: 1, semester, courses, ...(input.calendar !== undefined ? { calendar: validateCalendar(input.calendar) } : {}) };
 }
 
 export function createDemo(now = new Date()) {

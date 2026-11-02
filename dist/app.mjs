@@ -1,19 +1,24 @@
 import {
   STORAGE_KEY, DAYS, COLORS, DEFAULT_PERIODS, DEFAULT_SIGNIN_METHOD, validateSigninMethod, dateKey, weekForDate,
-  weekDates, sessionsForWeek, validateCourse, validateSemester, validateData, findConflicts, minutes,
+  weekDates, sessionsForWeek, sessionsForDate, attendanceKey, parseDate, addDays, mondayOf, validateCourse, validateSemester, validateData, findConflicts, minutes,
 } from './model.mjs';
 import { createPreset, fillKnownClassids } from './preset.mjs';
 import { BrowserReminderController, createReminderPlan } from './reminders.mjs';
 import { parseTimetableFile, exportTimetableFile, summarizeTimetable } from './transfer.mjs';
+import { holidayForDate, holidayYearNote } from './holidays.mjs';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const desktopBootstrap = window.__KEJIAN_DESKTOP__;
 const androidPlatform = !!window.__KEJIAN_ANDROID__;
 const pcPlatform = !androidPlatform;
+const appVersion = /* app:version */ '';
 document.body.classList.toggle('pc-platform', pcPlatform);
+if (pcPlatform) {
+  $('.local-indicator').textContent = `版本 ${appVersion}`;
+  $('.local-indicator').classList.add('app-version');
+}
 const nativeBridge = androidPlatform ? window.__KEJIAN_NATIVE_BRIDGE__ : desktopBootstrap?.desktop ? window.chrome?.webview : null;
-const courseToolsSupported = !androidPlatform && !!nativeBridge && desktopBootstrap?.courseTools === true;
 // Replaced with the complete offline document by scripts/build.mjs.
 const qrDocument = /* qr:document */ '';
 const importGuide = /* transfer:guide */ '';
@@ -23,7 +28,6 @@ const paths = {
   calendar: '<rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 3v4m8-4v4M4 10h16m-12 4h2m4 0h2m-8 3h2"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.7"/><rect x="14" y="3" width="7" height="7" rx="1.7"/><rect x="3" y="14" width="7" height="7" rx="1.7"/><rect x="14" y="14" width="7" height="7" rx="1.7"/>',
   qr: '<rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M15 15h3v3h3m-6 3h3M21 15v1M6 5v2m12-2v2M6 17v2"/>',
-  tools: '<path d="M14 4a5 5 0 0 0-6 6L3 15a3 3 0 0 0 4 4l5-5a5 5 0 0 0 6-6l-3 3-3-3 3-3Z"/>',
   book: '<path d="M12 5C9 3 5 3 3 4v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-2-1-6-1-9 1v15"/>',
   settings: '<path d="m9 3-1 3-3 1-2 3 2 2-1 3 2 3 3-1 3 2 3-2 3 1 2-3-1-3 2-2-2-3-3-1-1-3z"/><circle cx="11.5" cy="11" r="3"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -70,9 +74,13 @@ try {
   data = createPreset();
 }
 
-const viewFromHash = () => location.hash === '#tools' && courseToolsSupported ? 'tools' : ({ '#courses': 'courses', '#qr': 'qr' }[location.hash] || 'timetable');
+const viewFromHash = () => ({ '#courses': 'courses', '#qr': 'qr', '#planner': 'planner' }[location.hash] || 'timetable');
 let view = viewFromHash();
 let selectedWeek = Math.max(1, Math.min(data.semester.weeks, weekForDate(new Date(), data.semester)));
+let plannerDate = dateKey(new Date());
+let plannerMonth = plannerDate.slice(0, 7);
+let editingMemoId = null;
+let nativeRemindersEnabled = false;
 let editingId = null;
 let toastTimer;
 let returnFocus;
@@ -195,6 +203,7 @@ function commit(next, { recover = false } = {}) {
       throw new Error('数据已在其他窗口更新，请刷新页面后继续。');
     }
     const encoded = JSON.stringify(validated);
+    if (new TextEncoder().encode(encoded).length > 4000000) throw new Error('课表及日历数据超过 4 MB，请精简较长的备注后重试。');
     localStorage.setItem(STORAGE_KEY, encoded);
     expectedRaw = encoded;
     data = validated;
@@ -229,35 +238,22 @@ function periodTime(meeting) { return `${data.semester.periods[meeting.start - 1
 function renderToday() {
   const now = new Date();
   $('#current-date').textContent = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(now);
-  const actualWeek = weekForDate(now, data.semester);
-  const day = ((now.getDay() + 6) % 7) + 1;
-  const sessions = actualWeek >= 1 && actualWeek <= data.semester.weeks
-    ? sessionsForWeek(data.courses, actualWeek).filter(session => session.meeting.day === day) : [];
-  const currentMinute = now.getHours() * 60 + now.getMinutes();
-  $('#today-count').textContent = sessions.length ? `${sessions.length} 堂课` : '';
-  $('#today-agenda').innerHTML = sessions.length ? sessions.map(({ course, meeting, room }) =>
-    `<div class="agenda-item ${course.color} ${minutes(data.semester.periods[meeting.end - 1][1]) < currentMinute ? 'finished' : ''}"><span class="agenda-time">${periodTime(meeting)}</span><strong>${esc(course.name)}</strong><p class="agenda-room">${esc(room || '地点待定')}</p></div>`
-  ).join('') : `<div class="agenda-empty">${icon('sun')}${actualWeek < 1 ? '新学期还没开始，<br>先安排好期待的一周。' : actualWeek > data.semester.weeks ? '学期已经结束，<br>给自己一段休息时光。' : '今天没有课程，<br>享受一点自由时光。'}</div>`;
 }
 
-function renderCalendar() {
-  const dates = weekDates(data.semester, selectedWeek);
+function createCalendarScene(week) {
+  const dates = weekDates(data.semester, week);
   const today = dateKey(new Date());
   const dayCount = $('#show-weekends').checked ? 7 : 5;
   const search = $('#search-input').value;
-  const sessions = sessionsForWeek(data.courses, selectedWeek).filter(({ course, meeting }) => meeting.day <= dayCount && matches(course, search));
-  const calendar = $('#calendar');
-  calendar.classList.toggle('hide-weekends', dayCount === 5);
-  calendar.style.setProperty('--day-count', dayCount);
-  calendar.style.setProperty('--period-count', data.semester.periods.length);
-  let html = `<div class="time-corner" style="grid-column:1;grid-row:1">${androidPlatform ? `<span>第${selectedWeek}周</span><small>${dates[0].getMonth() + 1}月</small>` : '节次 / 时间'}</div>`;
+  const sessions = sessionsForWeek(data.courses, week).filter(({ course, meeting }) => meeting.day <= dayCount && matches(course, search));
+  let html = `<div class="time-corner" style="grid-column:1;grid-row:1">${androidPlatform ? `<span>第${week}周</span><small>${dates[0].getMonth() + 1}月</small>` : '节次 / 时间'}</div>`;
   for (let day = 1; day <= dayCount; day++) {
     const date = dates[day - 1];
     html += `<div class="day-header ${dateKey(date) === today ? 'is-today' : ''}" style="grid-column:${day + 1};grid-row:1"><span class="day-name">${DAYS[day - 1]}</span><span class="day-date">${String(date.getDate()).padStart(2, '0')}</span></div>`;
   }
   data.semester.periods.forEach(([start, end], index) => {
     const breakClass = index > 0 && minutes(start) - minutes(data.semester.periods[index - 1][1]) >= 60 ? 'is-break' : '';
-    html += `<div class="period-label ${breakClass}" style="grid-row:${index + 2};grid-column:1"><strong>${String(index + 1).padStart(2, '0')}</strong><small>${start}</small><small>${end}</small></div>`;
+    html += `<div class="period-label ${breakClass}" style="grid-row:${index + 2};grid-column:1" title="第 ${index + 1} 节 ${start}–${end}"><strong>${String(index + 1).padStart(2, '0')}</strong><small>${start}</small><small>${end}</small></div>`;
     for (let day = 1; day <= dayCount; day++) {
       const occupied = sessions.some(({ meeting }) => meeting.day === day && index + 1 >= meeting.start && index + 1 <= meeting.end);
       html += `<button class="slot ${breakClass} ${day > 5 ? 'is-weekend' : ''} ${dateKey(dates[day - 1]) === today ? 'is-today' : ''}" style="grid-column:${day + 1};grid-row:${index + 2}" data-day="${day}" data-period="${index + 1}" aria-label="${DAYS[day - 1]}第 ${index + 1} 节，${androidPlatform ? '双击' : ''}添加课程" ${occupied ? 'tabindex="-1"' : ''}></button>`;
@@ -267,6 +263,23 @@ function renderCalendar() {
     const displayRoom = androidPlatform ? online ? '线上' : room.replace(/^雅安\s*·\s*/, '') : room;
     html += `<button class="course-event ${course.color} ${meeting.start === meeting.end ? 'single-period' : ''}" style="grid-column:${meeting.day + 1};grid-row:${meeting.start + 1} / ${meeting.end + 2}" data-course-id="${esc(course.id)}" title="${esc(`${course.name} · ${course.teacher || '教师待定'}\n${room || '地点待定'}\n${meetingText(meeting)} · ${periodTime(meeting)}\n第 ${meeting.startWeek}–${meeting.endWeek} 周\n点击编辑课程`)}" aria-label="${esc(`${course.name}，${DAYS[meeting.day - 1]}第 ${meeting.start} 至 ${meeting.end} 节，${room || '地点待定'}，点击编辑`)}"><span class="event-title">${esc(course.name)}</span><span class="event-room">${esc(displayRoom || '地点待定')}</span><span class="event-bottom"><span>${meeting.start}${meeting.start !== meeting.end ? '–' + meeting.end : ''} 节</span>${online || meeting.parity !== 'all' ? `<span class="event-parity">${online ? '线上' : parityText(meeting.parity)}</span>` : ''}</span></button>`;
   }
+  return { html, dates, dayCount, search, sessions, periodCount: data.semester.periods.length };
+}
+
+// Read-only scenes let the mobile pager show an adjacent week before committing a switch.
+$('#calendar').addEventListener('kejian:week-preview', event => {
+  const request = event.detail;
+  if (!androidPlatform || !request || !Number.isInteger(request.week) || request.week < 1 || request.week > data.semester.weeks) return;
+  const { html, dayCount, periodCount } = createCalendarScene(request.week);
+  request.rendered = { html, dayCount, periodCount };
+});
+
+function renderCalendar() {
+  const { html, dates, dayCount, search, sessions, periodCount } = createCalendarScene(selectedWeek);
+  const calendar = $('#calendar');
+  calendar.classList.toggle('hide-weekends', dayCount === 5);
+  calendar.style.setProperty('--day-count', dayCount);
+  calendar.style.setProperty('--period-count', periodCount);
   calendar.innerHTML = html;
   $('#week-select').innerHTML = Array.from({ length: data.semester.weeks }, (_, index) => `<option value="${index + 1}" ${index + 1 === selectedWeek ? 'selected' : ''}>第 ${index + 1} 周</option>`).join('');
   $('#week-range').textContent = `${dateLabel(dates[0])} — ${dateLabel(dates[6])}`;
@@ -277,6 +290,28 @@ function renderCalendar() {
   const status = $('#filter-status');
   status.hidden = !search.trim() && hiddenWeekendCount === 0;
   status.textContent = [search.trim() ? `搜索「${search.trim()}」：当前视图共 ${sessions.length} 堂课` : '', hiddenWeekendCount ? `另有 ${hiddenWeekendCount} 堂周末课程，打开「周末」可查看` : ''].filter(Boolean).join(' · ');
+  fitTimetable();
+}
+
+function fitTimetable() {
+  if (!pcPlatform || view !== 'timetable') return;
+  const calendar = $('#calendar');
+  const bounds = calendar.getBoundingClientRect();
+  const corner = calendar.querySelector('.time-corner')?.getBoundingClientRect();
+  if (!corner || bounds.width <= 0 || bounds.height <= 0) return;
+  const dayCount = $('#show-weekends').checked ? 7 : 5;
+  const rowHeight = (bounds.height - corner.height) / data.semester.periods.length;
+  const columnWidth = (bounds.width - corner.width) / dayCount;
+  const scale = Math.max(0.55, Math.min(1.15, rowHeight / 78, columnWidth / 128));
+  calendar.style.setProperty('--fit-scale', scale.toFixed(3));
+  calendar.classList.toggle('dense-timetable', rowHeight < 52);
+  calendar.classList.toggle('tight-timetable', rowHeight < 34);
+  calendar.classList.toggle('micro-timetable', rowHeight < 26);
+}
+
+if (pcPlatform) {
+  const timetableResize = new ResizeObserver(fitTimetable);
+  timetableResize.observe($('#calendar'));
 }
 
 function renderCourses() {
@@ -292,9 +327,125 @@ function renderCourses() {
       <div class="course-meta">${icon('pointer')}签到方式：${esc(course.signinMethod)}</div>
       <div class="course-card-footer"><span>${esc(course.id)} · ${course.unscheduled ? '暂不排课' : `${course.meetings.length} 个安排`}</span>${icon('right')}</div>
     </button>
-    ${course.classid ? `<div class="course-signin"><span class="course-classid">classid · ${esc(course.classid)}</span><div class="course-signin-actions"><button type="button" class="button button-white" data-qr-course-id="${esc(course.id)}">生成二维码</button><button type="button" class="button button-primary" data-signin-course-id="${esc(course.id)}" ${courseOpenPending ? 'disabled' : ''}>${nativeBridge ? '跳转签到页' : '签到页说明'}</button>${courseToolsSupported ? `<button type="button" class="button button-white" data-tools-course-id="${esc(course.id)}">签到与作业</button>` : ''}</div></div>` : ''}
+    ${course.classid ? `<div class="course-signin"><span class="course-classid">classid · ${esc(course.classid)}</span><div class="course-signin-actions"><button type="button" class="button button-white" data-qr-course-id="${esc(course.id)}">生成二维码</button><button type="button" class="button button-primary" data-signin-course-id="${esc(course.id)}" ${courseOpenPending ? 'disabled' : ''}>${nativeBridge ? '跳转签到页' : '签到页说明'}</button></div></div>` : ''}
   </article>`).join('') : `<div class="empty-state">${icon(search.trim() ? 'search' : 'book')}<h3>${search.trim() ? '没有找到相关课程' : '新学期，从第一门课开始'}</h3><p>${search.trim() ? '试试课程名称、教师姓名、classid 或上课地点。' : '添加课程，把这一周安排得从容一点。'}</p>${!search.trim() ? '<button class="button button-primary" data-empty-add>添加第一门课</button>' : ''}</div>`;
 }
+
+function calendarData() { return data.calendar ?? { memos: [], attendance: [] }; }
+function markForSession(date, { course, meeting }) {
+  return { date, courseId: course.id, courseName: course.name, courseColor: course.color, start: meeting.start, end: meeting.end };
+}
+function renderPlanner() {
+  if (view !== 'planner') return;
+  const { memos, attendance } = calendarData();
+  const first = parseDate(plannerMonth + '-01');
+  const start = mondayOf(first);
+  const today = dateKey(new Date());
+  const courseColors = new Map(data.courses.map(course => [course.id, course.color]));
+  const byDate = new Map();
+  for (const item of [...memos, ...attendance]) {
+    if (!byDate.has(item.date)) byDate.set(item.date, { memos: [], attendance: [] });
+    byDate.get(item.date)[item.courseId !== undefined ? 'attendance' : 'memos'].push(item);
+  }
+  $('#planner-month').value = plannerMonth;
+  $('#planner-prev').disabled = plannerMonth === '2000-01';
+  $('#planner-next').disabled = plannerMonth === '2100-12';
+  $('#planner-holiday-note').textContent = holidayYearNote(first.getFullYear());
+  const monthDays = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  const cells = Math.ceil((((first.getDay() + 6) % 7) + monthDays) / 7) * 7;
+  $('#planner-days').innerHTML = Array.from({ length: cells }, (_, index) => {
+    const day = addDays(start, index), date = dateKey(day);
+    const items = byDate.get(date) ?? { memos: [], attendance: [] };
+    const holiday = holidayForDate(date);
+    const label = `${date}${date === today ? '，今天' : ''}${holiday ? '，' + holiday.name : ''}，${items.memos.length} 条备忘录，${items.attendance.length} 条签到记录`;
+    const dots = items.attendance.map(mark => {
+      const color = courseColors.get(mark.courseId) ?? mark.courseColor ?? '';
+      const description = `${mark.courseName} · 第 ${mark.start}–${mark.end} 节`;
+      return `<span class="attendance-dot ${color}" role="img" title="${esc(description)}" aria-label="${esc(description + '，已签到')}"></span>`;
+    }).join('');
+    return `<button class="planner-day ${date.slice(0, 7) !== plannerMonth ? 'other-month' : ''} ${date === today ? 'is-today' : ''} ${date === plannerDate ? 'selected' : ''}" data-planner-date="${date}" aria-label="${label}" aria-pressed="${date === plannerDate}" ${date < '2000-01-01' || date > '2100-12-31' ? 'disabled' : ''}><span class="planner-day-number">${day.getDate()}</span>${holiday ? `${holiday.kind !== 'festival' ? `<span class="holiday-badge holiday-badge-${holiday.kind}" aria-hidden="true">${holiday.kind === 'rest' ? '休' : '班'}</span>` : ''}<span class="holiday-label holiday-${holiday.kind}" title="${esc(holiday.description)}">${holiday.kind === 'work' ? '调休' : holiday.name.replace(/假期$/, '')}</span>` : ''}${dots ? `<span class="planner-attendance-dots">${dots}</span>` : ''}<span class="planner-day-counts">${items.memos.length ? `<span class="memo-count">● ${items.memos.length}<span class="planner-count-label"> 备忘</span></span>` : ''}</span><span class="planner-day-preview">${items.memos.slice(0, 2).map(memo => `<span>${esc(memo.title)}</span>`).join('')}</span></button>`;
+  }).join('');
+  $('#planner-date-title').textContent = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(parseDate(plannerDate));
+  const selectedHoliday = holidayForDate(plannerDate);
+  $('#planner-holiday').hidden = !selectedHoliday;
+  $('#planner-holiday').textContent = selectedHoliday ? `${selectedHoliday.name} · ${selectedHoliday.description}` : '';
+  const dayMemos = memos.filter(memo => memo.date === plannerDate).sort((a, b) => a.time.localeCompare(b.time) || a.id.localeCompare(b.id));
+  $('#planner-memos').innerHTML = dayMemos.length ? dayMemos.map(memo => `<button class="planner-memo" data-memo-id="${esc(memo.id)}"><span class="planner-item-top"><strong>${esc(memo.title)}</strong><small>${memo.time || '全天'}${memo.remind ? ' · 提醒' : ''}</small></span>${memo.notes ? `<span class="planner-memo-notes">${esc(memo.notes)}</span>` : ''}</button>`).join('') : '<p class="planner-empty">暂无备忘录</p>';
+  const sessions = sessionsForDate(data, plannerDate);
+  const currentKeys = new Set(sessions.map(session => attendanceKey(markForSession(plannerDate, session))));
+  const marked = new Set(attendance.map(attendanceKey));
+  const sessionRows = sessions.map((session, index) => {
+    const { course, meeting, room } = session;
+    const signed = marked.has(attendanceKey(markForSession(plannerDate, session)));
+    return `<div class="planner-session ${signed ? 'signed' : ''}"><div><strong>${esc(course.name)}</strong><p>${meeting.start}–${meeting.end} 节 · ${periodTime(meeting)}</p><p>${esc(room || '地点待定')}</p></div><button class="button ${signed ? 'button-white' : 'button-primary'}" data-attend-session="${index}" aria-pressed="${signed}">${signed ? '已签到 · 撤销' : '标记签到'}</button></div>`;
+  });
+  attendance.forEach((mark, index) => {
+    if (mark.date !== plannerDate || currentKeys.has(attendanceKey(mark))) return;
+    sessionRows.push(`<div class="planner-session signed"><div><strong>${esc(mark.courseName)}</strong><p>${mark.start}–${mark.end} 节 · 历史签到记录</p></div><button class="button button-white" data-remove-attendance="${index}">已签到 · 撤销</button></div>`);
+  });
+  $('#planner-sessions').innerHTML = sessionRows.length ? sessionRows.join('') : '<p class="planner-empty">当天没有课程安排</p>';
+}
+
+function openMemo(id = null) {
+  const memo = id === null ? null : calendarData().memos.find(item => item.id === id);
+  if (id !== null && !memo) return;
+  editingMemoId = id;
+  const form = $('#memo-form');
+  form.reset();
+  form.elements.title.value = memo?.title ?? '';
+  form.elements.date.value = memo?.date ?? plannerDate;
+  form.elements.time.value = memo?.time ?? '';
+  form.elements.remind.checked = memo?.remind ?? false;
+  form.elements.notes.value = memo?.notes ?? '';
+  $('#memo-dialog-title').textContent = id === null ? '添加备忘录' : '编辑备忘录';
+  $('#delete-memo').hidden = id === null;
+  showError('#memo-error', '');
+  openDialog($('#memo-dialog'));
+}
+
+function changePlannerMonth(delta) {
+  const first = parseDate(plannerMonth + '-01');
+  first.setMonth(first.getMonth() + delta);
+  const month = dateKey(first).slice(0, 7);
+  if (month < '2000-01' || month > '2100-12') return;
+  plannerMonth = month;
+  plannerDate = month + '-01';
+  renderPlanner();
+}
+
+$('#planner-prev').addEventListener('click', () => changePlannerMonth(-1));
+$('#planner-next').addEventListener('click', () => changePlannerMonth(1));
+$('#planner-month').addEventListener('change', event => {
+  const month = event.target.value;
+  if (!/^\d{4}-\d{2}$/.test(month) || month < '2000-01' || month > '2100-12') { event.target.value = plannerMonth; return; }
+  plannerMonth = month; plannerDate = month + '-01'; renderPlanner();
+});
+$('#planner-today').addEventListener('click', () => { plannerDate = dateKey(new Date()); plannerMonth = plannerDate.slice(0, 7); renderPlanner(); });
+$('#add-memo').addEventListener('click', () => openMemo());
+$('#planner-reminders').addEventListener('click', () => $('#reminders-button').click());
+$('#memo-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const form = event.currentTarget.elements;
+  const memo = { id: editingMemoId ?? crypto.randomUUID(), title: form.title.value, date: form.date.value, time: form.time.value,
+    remind: form.remind.checked, notes: form.notes.value };
+  if (memo.remind && !memo.time) { showError('#memo-error', '请填写提醒的具体时间。'); return; }
+  const current = calendarData();
+  const memos = editingMemoId ? current.memos.map(item => item.id === editingMemoId ? memo : item) : [...current.memos, memo];
+  if (commit({ ...data, calendar: { ...current, memos } })) {
+    plannerDate = memo.date; plannerMonth = memo.date.slice(0, 7); renderPlanner();
+    $('#memo-dialog').close();
+    const enabled = nativeBridge ? nativeRemindersEnabled : reminderController?.enabled;
+    toast(memo.remind ? Date.parse(`${memo.date}T${memo.time}:00+08:00`) <= Date.now() ? '备忘录已保存，已过去的提醒不会补发。' : enabled ? '备忘录及提醒已保存。' : '备忘录已保存，请在“提醒设置”中开启系统提醒。' : '备忘录已保存。');
+    if (memo.remind && !enabled && Date.parse(`${memo.date}T${memo.time}:00+08:00`) > Date.now()) $('#reminders-button').click();
+  } else showError('#memo-error', '备忘录未保存，请检查输入与存储提示。');
+});
+$('#delete-memo').addEventListener('click', async () => {
+  if (!await askConfirm('删除备忘录？', '此备忘录及其提醒将一并移除。', '删除')) return;
+  const current = calendarData();
+  if (commit({ ...data, calendar: { ...current, memos: current.memos.filter(item => item.id !== editingMemoId) } })) {
+    $('#memo-dialog').close(); toast('备忘录已删除。');
+  }
+});
 
 function render() {
   renderStorageWarning();
@@ -305,17 +456,17 @@ function render() {
   $('#stat-lessons-label').textContent = `第 ${selectedWeek} 周课时`;
   $('#timetable-view').hidden = view !== 'timetable';
   $('#courses-view').hidden = view !== 'courses';
+  $('#planner-view').hidden = view !== 'planner';
   $('#qr-view').hidden = view !== 'qr';
-  $('#tools-view').hidden = view !== 'tools';
   document.body.classList.toggle('qr-active', view === 'qr');
   if (androidPlatform) document.body.classList.toggle('timetable-active', view === 'timetable');
   document.body.classList.toggle('pc-timetable-active', pcPlatform && view === 'timetable');
-  $('.overview').hidden = view === 'qr' || view === 'tools';
-  $('.header-actions').hidden = view === 'qr' || view === 'tools';
-  const viewTitle = { timetable: '我的课表', courses: '课程管理', qr: '二维码预测', tools: '课程工具' }[view];
+  $('.overview').hidden = view !== 'courses' && view !== 'timetable';
+  $('.header-actions').hidden = view !== 'courses' && view !== 'timetable';
+  const viewTitle = { timetable: '我的课表', courses: '课程管理', planner: '日历备忘', qr: '二维码预测' }[view];
   $('#page-title').innerHTML = `${viewTitle}<span class="title-dot">.</span>`;
   $('#breadcrumb-current').textContent = viewTitle;
-  $('#page-subtitle').textContent = { timetable: `${data.semester.name} · 共 ${data.semester.weeks} 周`, courses: '管理当前学期的课程，包含实践课与 MOOC。', qr: '四川农业大学 EOL · 按课程 classid 和当前时间生成，无需原二维码。', tools: '沿用本人浏览器登录，手动签到与提交文件型作业。' }[view];
+  $('#page-subtitle').textContent = { timetable: `${data.semester.name} · 共 ${data.semester.weeks} 周`, courses: '管理当前学期的课程，包含实践课与 MOOC。', planner: '记录备忘录、安排提醒，查看每天的课程签到记录。', qr: '四川农业大学 EOL · 按课程 classid 和当前时间生成，无需原二维码。' }[view];
   if (view === 'qr' && !qrLoaded) { qrLoaded = true; qrFrame.srcdoc = qrDocument; }
   syncQrContext();
   const pendingCount = data.courses.filter(course => course.unscheduled).length;
@@ -325,37 +476,8 @@ function render() {
   renderToday();
   renderCalendar();
   renderCourses();
-  renderCourseTools();
+  renderPlanner();
 }
-
-let toolsPending = false;
-function renderCourseTools() {
-  $('#course-tools-nav').hidden = !courseToolsSupported;
-  if (!courseToolsSupported) return;
-  const select = $('#tools-course-select');
-  const previous = select.value;
-  select.innerHTML = '<option value="">在工具中选择本人课程</option>' + data.courses.filter(course => course.classid).map(course => `<option value="${esc(course.id)}">${esc(course.name)} · ${esc(course.classid)}</option>`).join('');
-  if ([...select.options].some(option => option.value === previous)) select.value = previous;
-  $$('#tools-open,#tools-extension').forEach(button => { button.disabled = toolsPending; });
-}
-function showCourseTools(id) {
-  if (!courseToolsSupported) return;
-  $('#tools-course-select').value = id;
-  location.hash = 'tools';
-}
-function sendCourseTool(action) {
-  if (!courseToolsSupported || toolsPending) return;
-  toolsPending = true;
-  $('#tools-status').classList.remove('tools-error');
-  $('#tools-status').textContent = action === 'extension' ? '正在打开扩展文件夹…' : '正在准备课程工具窗口，首次启动可能需要几秒…';
-  renderCourseTools();
-  nativeBridge.postMessage({ type: 'course-tools:open', action, courseId: $('#tools-course-select').value });
-}
-$('#tools-open').addEventListener('click', () => sendCourseTool('signin'));
-$('#tools-extension').addEventListener('click', () => {
-  sendCourseTool('extension');
-  $('#extension-install-guide').scrollIntoView({ block: 'start', behavior: 'smooth' });
-});
 
 function openDialog(dialog) {
   returnFocus = document.activeElement;
@@ -610,7 +732,7 @@ $('#copy-import-guide').addEventListener('click', async () => {
 
 function renderImportPreview(candidate) {
   const summary = summarizeTimetable(candidate);
-  $('#import-summary').textContent = `${summary.courses} 门课程 · ${summary.credits} 学分 · ${summary.unscheduled} 门待安排 · ${summary.classids} 门已填写 classid`;
+  $('#import-summary').textContent = `${summary.courses} 门课程 · ${summary.credits} 学分 · ${summary.unscheduled} 门待安排 · ${summary.classids} 门已填写 classid · ${candidate.calendar?.memos.length ?? 0} 条备忘录 · ${candidate.calendar?.attendance.length ?? 0} 条签到记录`;
   $('#import-semester-summary').textContent = `${candidate.semester.name} · 第一周星期一 ${candidate.semester.startDate} · ${candidate.semester.weeks} 周 · 每天 ${candidate.semester.periods.length} 节`;
   $('#import-preview-courses').innerHTML = candidate.courses.map(course => `<tr><td><strong>${esc(course.name)}</strong><br>${esc(course.id)}</td><td>${esc(course.teacher || '教师待定')}<br>${esc(course.room || '地点待定')}</td><td>${course.unscheduled ? '教师安排／自主学习' : course.meetings.map(meeting => `${DAYS[meeting.day - 1]} ${meeting.start}–${meeting.end} 节，第 ${meeting.startWeek}–${meeting.endWeek} 周（${parityText(meeting.parity)}）${meeting.room ? ' · ' + esc(meeting.room) : ''}${meeting.onlineWeeks?.length ? ' · 第 ' + meeting.onlineWeeks.join('、') + ' 周线上' : ''}`).join('<br>')}</td><td>${esc(course.classid || '未填写')}</td></tr>`).join('');
   $('#import-preview').hidden = false;
@@ -663,8 +785,24 @@ $('#apply-import').addEventListener('click', () => {
 });
 
 document.addEventListener('click', event => {
-  const toolButton = event.target.closest('[data-tools-course-id]');
-  if (toolButton) { showCourseTools(toolButton.dataset.toolsCourseId); return; }
+  const dateButton = event.target.closest('[data-planner-date]');
+  if (dateButton) { plannerDate = dateButton.dataset.plannerDate; plannerMonth = plannerDate.slice(0, 7); renderPlanner(); return; }
+  const memoButton = event.target.closest('[data-memo-id]');
+  if (memoButton) { openMemo(memoButton.dataset.memoId); return; }
+  const attendButton = event.target.closest('[data-attend-session]');
+  const removeAttendance = event.target.closest('[data-remove-attendance]');
+  if (attendButton || removeAttendance) {
+    const current = calendarData();
+    let attendance;
+    if (attendButton) {
+      const session = sessionsForDate(data, plannerDate)[Number(attendButton.dataset.attendSession)];
+      if (!session) return;
+      const record = markForSession(plannerDate, session), key = attendanceKey(record);
+      attendance = current.attendance.some(item => attendanceKey(item) === key) ? current.attendance.filter(item => attendanceKey(item) !== key) : [...current.attendance, record];
+    } else attendance = current.attendance.filter((_, index) => index !== Number(removeAttendance.dataset.removeAttendance));
+    if (commit({ ...data, calendar: { ...current, attendance } })) toast(attendance.length > current.attendance.length ? '已标记签到。' : '已撤销签到标记。');
+    return;
+  }
   const qrButton = event.target.closest('[data-qr-course-id]');
   if (qrButton) { showCourseQr(qrButton.dataset.qrCourseId); return; }
   const signinButton = event.target.closest('[data-signin-course-id]');
@@ -706,7 +844,7 @@ $$('dialog').forEach(dialog => dialog.addEventListener('close', () => {
   if (dialog.id !== 'confirm-dialog') returnFocus?.focus?.();
 }));
 document.addEventListener('keydown', event => {
-  if (view === 'qr' || view === 'tools') return;
+  if (view === 'qr' || view === 'tools' || view === 'planner') return;
   if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || document.querySelector('dialog[open]') || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
   if (event.key.toLowerCase() === 'n') { event.preventDefault(); openCourse(); }
   if (event.key === '/') { event.preventDefault(); $(view === 'timetable' ? '#search-input' : '#course-search').focus(); }
@@ -738,8 +876,8 @@ function renderReminderSettings() {
   control.disabled = !browserRemindersSupported || reminderRequestPending;
   $('#test-reminder').disabled = !reminderController.enabled || !browserRemindersSupported;
   $('#reminder-status').textContent = !browserRemindersSupported
-    ? '当前本地文件不支持浏览器系统通知，请使用上方的 Windows 静态版提醒。'
-    : reminderController.error || (reminderController.enabled ? '已开启：每节上课、下课时发送系统通知。请保持网页打开。' : '已关闭。开启时，浏览器会请求通知权限。');
+    ? '本地文件不支持浏览器系统通知。可使用 Windows 桌面版，或导出提醒计划交给静态版提醒工具。'
+    : reminderController.error || (reminderController.enabled ? '已开启：上下课及备忘录到时发送系统通知。请保持网页打开。' : '已关闭。开启时，浏览器会请求通知权限。');
 }
 reminderController = new BrowserReminderController({ notificationApi: browserRemindersSupported ? window.Notification : undefined,
   storage: { getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value) }, key: STORAGE_KEY + '.reminders', onChange: renderReminderSettings });
@@ -780,25 +918,21 @@ if (nativeBridge) {
   $('#native-reminder-section').hidden = false;
   $('#standalone-reminder-section').hidden = true;
   $('#browser-reminder-section').hidden = true;
-  $('.local-indicator').innerHTML = '<span></span>' + (androidPlatform ? '数据自动保存在此手机' : '数据保存在程序目录');
+  if (androidPlatform) $('.local-indicator').textContent = '数据自动保存在此手机';
   $('.help-content>p').textContent = androidPlatform
-    ? '这是你的离线手机课表。一屏显示一周七天，双击空白格添加课程，点击已有课程可以编辑。在“更多”中切换教学周、导入导出和设置提醒。课表自动保存在此手机。'
+    ? '这是你的离线手机课表。一屏显示一周七天，双击空白格添加课程，点击已有课程可以编辑。课表顶部可切换周次与周末显示，也可左右滑动切周；导入导出和提醒选项位于“设置”。课表自动保存在此手机。'
     : '桌面课程表支持离线使用。课程自动保存到程序旁的“课间数据”文件夹，可导入、导出 JSON；开启“桌面提醒”后可接收上下课通知。移动或备份时请带上整个程序文件夹。';
-  if (!androidPlatform) $$('.help-content section p')[2].textContent = '课表、提醒、课程工具、扩展和应用浏览器配置都在程序旁的“课间数据”中。请整体移动或备份，单独复制 EXE 不包含后续编辑的数据。也可导出 JSON，在其他设备中导入恢复。';
+  if (!androidPlatform) $$('.help-content section p')[2].textContent = '课表、提醒和应用浏览器配置都在程序旁的“课间数据”中。请整体移动或备份，单独复制 EXE 不包含后续编辑的数据。也可导出 JSON，在其他设备中导入恢复。';
   let nativeReady = false;
   let nativeError = '';
   nativeBridge.addEventListener('message', event => {
     const message = event.data;
     if (message?.type === 'desktop:state') {
+      nativeRemindersEnabled = message.enabled;
       nativeReady = message.ready;
       $('#native-reminders').checked = message.enabled;
       $('#native-reminders').disabled = !nativeReady;
-      $('#native-reminder-status').textContent = nativeError || (androidPlatform && message.message) || (nativeReady ? message.enabled ? '已开启：每节上课、下课各提醒一次，课程和作息修改后自动同步。' : '已关闭。打开开关即可接收 Windows 桌面通知。' : '正在同步课表…');
-    } else if (message?.type === 'course-tools:result') {
-      toolsPending = false;
-      renderCourseTools();
-      $('#tools-status').textContent = message.message;
-      $('#tools-status').classList.toggle('tools-error', message.status === 'error');
+      $('#native-reminder-status').textContent = nativeError || (androidPlatform && message.message) || (nativeReady ? message.enabled ? '已开启：上下课、备忘录及节假日到时提醒，修改后自动同步。' : '已关闭。打开开关即可接收系统通知。' : '正在同步课表…');
     } else if (message?.type === 'backup:result') {
       const label = message.kind === 'guide' ? '格式说明' : message.kind === 'example' ? '示例文件' : '备份';
       if (message.status === 'saved') toast(message.kind === 'guide' ? '格式说明已保存，请与自己的课表一起交给 AI。' : message.kind === 'example' ? '示例文件已保存，请替换为自己的课程内容后再导入。' : '备份已保存。恢复时请点击左侧“导入课表”，无需双击 JSON 文件。');

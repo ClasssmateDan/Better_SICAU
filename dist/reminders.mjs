@@ -1,7 +1,8 @@
 import { addDays, dateKey, parseDate, sessionsForWeek } from './model.mjs';
+import { createHolidayEvents } from './holidays.mjs';
 
 export function createReminderPlan(timetable) {
-  const events = [];
+  const events = createHolidayEvents();
   const first = parseDate(timetable.semester.startDate);
   for (let week = 1; week <= timetable.semester.weeks; week++) {
     for (const { course, meeting, room } of sessionsForWeek(timetable.courses, week)) {
@@ -19,6 +20,13 @@ export function createReminderPlan(timetable) {
         }
       }
     }
+  }
+  for (const memo of timetable.calendar?.memos ?? []) {
+    if (!memo.remind || !memo.time) continue;
+    // Calendar reminders follow the same campus time zone on every device.
+    const at = Date.parse(`${memo.date}T${memo.time}:00+08:00`);
+    events.push({ id: `memo|${memo.id}|${memo.date}|${memo.time}`, at, title: '课间 · 备忘录提醒',
+      body: `${memo.date} ${memo.time} · ${memo.title}${memo.notes ? '\n' + memo.notes : ''}` });
   }
   events.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
   return { kind: 'kejian-reminder-plan', version: 1, semesterName: timetable.semester.name, events };

@@ -91,7 +91,40 @@ final class TimetableStore {
             }
             table.courses.add(course);
         }
+        if (data.has("calendar")) {
+            JSONObject calendar = data.getJSONObject("calendar");
+            JSONArray memos = calendar.getJSONArray("memos"), attendance = calendar.getJSONArray("attendance");
+            if (memos.length() > 2000 || attendance.length() > 10000) throw new IOException("日历记录过多");
+            Set<String> memoIds = new HashSet<>();
+            for (int i = 0; i < memos.length(); i++) {
+                JSONObject memo = memos.getJSONObject(i);
+                String id = memo.getString("id"), title = memo.getString("title"), date = memo.getString("date");
+                String time = memo.optString("time", ""), notes = memo.optString("notes", "");
+                if (id.trim().isEmpty() || id.length() > 100 || !memoIds.add(id) || title.trim().isEmpty() || title.length() > 120 || notes.length() > 1500) throw new IOException("备忘录格式不正确");
+                LocalDate day = calendarDate(date);
+                if (!time.isEmpty() && !time.matches("([01][0-9]|2[0-3]):[0-5][0-9]")) throw new IOException("备忘录时间不正确");
+                if (memo.has("remind") && !(memo.get("remind") instanceof Boolean)) throw new IOException("备忘录提醒开关不正确");
+                ReminderSchedule.Memo entry = new ReminderSchedule.Memo();
+                entry.id = id; entry.title = title; entry.date = day; entry.time = time; entry.notes = notes; entry.remind = memo.optBoolean("remind", false);
+                if (entry.remind && time.isEmpty()) throw new IOException("备忘录提醒需要具体时间");
+                table.memos.add(entry);
+            }
+            Set<String> marks = new HashSet<>();
+            for (int i = 0; i < attendance.length(); i++) {
+                JSONObject mark = attendance.getJSONObject(i);
+                calendarDate(mark.getString("date"));
+                String id = mark.getString("courseId"), name = mark.getString("courseName");
+                int start = number(mark, "start", 1, 16), end = number(mark, "end", start, 16);
+                if (id.trim().isEmpty() || id.length() > 100 || name.trim().isEmpty() || name.length() > 60) throw new IOException("签到记录不正确");
+                String key = new JSONArray().put(mark.getString("date")).put(id).put(start).put(end).toString();
+                if (!marks.add(key)) throw new IOException("签到记录重复");
+            }
+        }
         return table;
+    }
+    private static LocalDate calendarDate(String date) throws Exception {
+        if (!date.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}") || date.compareTo("2000-01-01") < 0 || date.compareTo("2100-12-31") > 0) throw new IOException("日历日期超出范围");
+        return LocalDate.parse(date);
     }
     private static int number(JSONObject object, String key, int min, int max) throws Exception {
         double raw = object.getDouble(key); int value = object.getInt(key);

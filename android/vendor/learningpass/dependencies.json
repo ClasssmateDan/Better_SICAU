@@ -1,0 +1,20 @@
+[
+  {
+    "file": "core-3.5.3.jar",
+    "group": "com.google.zxing",
+    "artifact": "core",
+    "version": "3.5.3",
+    "sha256": "8d8064c1636fdaef7189dd9055c7d59950a8940a12f2293956446ec3c109fd82",
+    "license": "Apache-2.0",
+    "url": "https://repo.maven.apache.org/maven2/com/google/zxing/core/3.5.3/core-3.5.3.jar"
+  },
+  {
+    "file": "jsoup-1.18.3.jar",
+    "group": "org.jsoup",
+    "artifact": "jsoup",
+    "version": "1.18.3",
+    "sha256": "5be1ccd3228ae5fd6eed1bd6d827bac2bc65b91c20e9957d16ea65f739f15302",
+    "license": "MIT",
+    "url": "https://repo.maven.apache.org/maven2/org/jsoup/jsoup/1.18.3/jsoup-1.18.3.jar"
+  }
+]

@@ -15,11 +15,17 @@ public final class ReminderSchedule {
         public String id, name, teacher = "", room = "";
         public List<Meeting> meetings = new ArrayList<>();
     }
+    public static final class Memo {
+        public String id, title, time = "", notes = "";
+        public LocalDate date;
+        public boolean remind;
+    }
     public static final class Timetable {
         public LocalDate monday;
         public int weeks;
         public List<String[]> periods = new ArrayList<>();
         public List<Course> courses = new ArrayList<>();
+        public List<Memo> memos = new ArrayList<>();
     }
     public static final class Event {
         public final String id, title, body;
@@ -27,7 +33,7 @@ public final class ReminderSchedule {
         Event(String id, long at, String title, String body) { this.id = id; this.at = at; this.title = title; this.body = body; }
     }
     public static List<Event> build(Timetable table) {
-        List<Event> events = new ArrayList<>();
+        List<Event> events = new ArrayList<>(BuiltinHolidays.events());
         for (int week = 1; week <= table.weeks; week++) {
             for (Course course : table.courses) for (Meeting meeting : course.meetings) {
                 if (week < meeting.startWeek || week > meeting.endWeek) continue;
@@ -42,6 +48,12 @@ public final class ReminderSchedule {
                     events.add(new Event(id, at, "课间 · " + (part == 0 ? "上课" : "下课") + "提醒", body));
                 }
             }
+        }
+        for (Memo memo : table.memos) {
+            if (!memo.remind || memo.time.isEmpty()) continue;
+            long at = memo.date.atTime(LocalTime.parse(memo.time)).atZone(CAMPUS_ZONE).toInstant().toEpochMilli();
+            events.add(new Event("memo|" + memo.id + "|" + memo.date + "|" + memo.time, at, "课间 · 备忘录提醒",
+                memo.date + " " + memo.time + " · " + memo.title + (memo.notes.isEmpty() ? "" : "\n" + memo.notes)));
         }
         events.sort(Comparator.comparingLong((Event event) -> event.at).thenComparing(event -> event.id));
         return events;

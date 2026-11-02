@@ -1,0 +1,1 @@
+https://example.invalid/widget/sign/e?id=5000000000000&c=123456&enc=0123456789abcdef0123456789abcdef&title=%E6%B5%8B%E8%AF%95%E6%B4%BB%E5%8A%A8&tag=a&tag=b&empty=

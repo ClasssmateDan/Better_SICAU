@@ -7,8 +7,11 @@ import { createPreset } from '../dist/preset.mjs';
 import { validateData } from '../dist/model.mjs';
 import { androidTools, root, run } from './android-tools.mjs';
 import { createAndroidDocument } from './android-document.mjs';
+import { holidayJavaSource } from './holiday-source.mjs';
+import { learningPassDependencies } from './learningpass-dependencies.mjs';
 
 const tools = await androidTools();
+const dependencies = await learningPassDependencies();
 const base = path.join(root, 'android');
 const build = path.join(base, '.build', 'apk-' + Date.now());
 const assets = path.join(base, 'assets'), generated = path.join(build, 'generated'), classes = path.join(build, 'classes'), dex = path.join(build, 'dex');
@@ -31,8 +34,19 @@ for (const [source, name] of [['课表数据格式说明.md', 'format-guide.md']
   try { await unlink(path.join(assets, source)); } catch (error) { if (error.code !== 'ENOENT') throw error; }
 }
 await writeFile(path.join(assets, 'QR-THIRD-PARTY-LICENSES.txt'), 'jsQR 1.4.0\n' + await readFile(path.join(root, 'qr-tool/dist/vendor/jsQR.LICENSE'), 'utf8') + '\nqrcode-generator 1.4.4\n' + await readFile(path.join(root, 'qr-tool/dist/vendor/qrcode.LICENSE'), 'utf8'));
+const learningPassAssets = path.join(assets, 'learningpass');
+await mkdir(path.join(learningPassAssets, 'licenses'), { recursive: true });
+await copyFile(path.join(base, 'learningpass/NOTICE.txt'), path.join(learningPassAssets, 'NOTICE.txt'));
+for (const license of await readdir(path.join(base, 'learningpass/licenses'))) {
+  await copyFile(path.join(base, 'learningpass/licenses', license), path.join(learningPassAssets, 'licenses', license));
+}
+// Remove obsolete generated feature assets from earlier builds.
+for (const name of ['COURSE-TOOLS-THIRD-PARTY-LICENSES.txt','course-tools-guide.md']) {
+  try { await unlink(path.join(assets,name)); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+}
 // SDK's Windows native tools expect relative ASCII paths for a Chinese workspace.
 const relative = filename => path.relative(root, filename);
+await writeFile(path.join(generated, 'BuiltinHolidays.java'), holidayJavaSource());
 run(tools.aapt, ['compile', '--dir', 'android/res', '-o', relative(path.join(build, 'resources.zip'))]);
 const unsigned = path.join(build, 'unsigned.apk');
 run(tools.aapt, ['link', '-o', relative(unsigned), '-I', tools.androidJar, '--manifest', 'android/AndroidManifest.xml', '-A', relative(assets), '--java', relative(generated), relative(path.join(build, 'resources.zip'))]);
@@ -46,12 +60,12 @@ async function files(directory, suffix) {
 }
 const javaSources = [...await files(path.join(base, 'src'), '.java'), ...await files(generated, '.java')];
 const argumentFile = path.join(build, 'javac.args');
-await writeFile(argumentFile, ['--release', '8', '-encoding', 'UTF-8', '-classpath', tools.androidJar, '-d', classes, ...javaSources].map(value => '"' + value.replaceAll('\\', '/') + '"').join('\n'));
+await writeFile(argumentFile, ['--release', '8', '-encoding', 'UTF-8', '-classpath', [tools.androidJar, ...dependencies].join(path.delimiter), '-d', classes, ...javaSources].map(value => '"' + value.replaceAll('\\', '/') + '"').join('\n'));
 run(tools.javac, ['@' + argumentFile]);
 const jar = path.join(build, 'classes.jar');
 run(tools.jar, ['--create', '--file', jar, '-C', classes, '.']);
-run(tools.java, ['-cp', tools.d8, 'com.android.tools.r8.D8', '--lib', tools.androidJar, '--min-api', '26', '--output', dex, jar]);
-run(tools.jar, ['--update', '--file', unsigned, '-C', dex, 'classes.dex']);
+run(tools.java, ['-cp', tools.d8, 'com.android.tools.r8.D8', '--release', '--lib', tools.androidJar, '--min-api', '26', '--output', dex, jar, ...dependencies]);
+for (const file of (await readdir(dex)).filter(name => /^classes\d*\.dex$/.test(name))) run(tools.jar, ['--update', '--file', unsigned, '-C', dex, file]);
 const aligned = path.join(build, 'aligned.apk'); run(tools.align, ['-f', '-p', '4', relative(unsigned), relative(aligned)]);
 
 const signing = path.resolve(process.env.KEJIAN_ANDROID_SIGNING_DIR || path.join(base, 'private-signing')); await mkdir(signing, { recursive: true });

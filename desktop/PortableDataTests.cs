@@ -16,7 +16,7 @@ internal static class PortableDataTests {
     private static void Run(string name,Action action) { action(); passed++; Console.WriteLine("PASS "+name); }
     private static string Bundle(string app) {
         string folder=PortableData.DefaultRoot(app);
-        string[] names={"course-tools/browser-extension/manifest.json","course-tools/browser-extension/background.js","runtime/1.7.4/course-tools/KeJianCourseTools.exe"};
+        string[] names={"course-tools/browser-extension/manifest.json","course-tools/browser-extension/background.js","runtime/1.9.0/course-tools/KeJianCourseTools.exe"};
         StringBuilder manifest=new StringBuilder("KeJian bundled assets v1\n");
         foreach(string name in names) {
             string file=Path.Combine(folder,name); Put(file,"bundled "+name);
@@ -27,13 +27,23 @@ internal static class PortableDataTests {
     private static int Main(string[] args) {
         try {
             root=Path.GetFullPath(args[0]).TrimEnd(Path.DirectorySeparatorChar); Directory.CreateDirectory(root);
+            Run("empty release manifest permits migration without retired resources",delegate {
+                foreach(bool copy in new [] {false,true}) {
+                    string tag="empty-bundle-"+copy,app=Case(tag+"/app"),old=Path.Combine(Case(tag+"/legacy"),"KeJianTimetable");
+                    string target=PortableData.DefaultRoot(app);Put(Path.Combine(target,PortableData.BundleMarker),"KeJian bundled assets v1\n\n");
+                    Put(Path.Combine(old,"timetable.json"),"existing timetable");Put(Path.Combine(old,"settings.json"),"existing settings");
+                    PortableDataResult migrated=PortableData.Prepare(app,old,true,copy);
+                    Check(migrated.Migrated&&File.ReadAllText(Path.Combine(target,"timetable.json"))=="existing timetable","empty marker blocked timetable migration");
+                    Check(!Directory.Exists(Path.Combine(target,"course-tools")),"migration generated retired resources");
+                }
+            });
             Run("unpacked bundled assets do not block either migration path",delegate {
                 foreach(bool copy in new [] {false,true}) {
                     string tag="bundle-"+copy,app=Case(tag+"/app"),old=Path.Combine(Case(tag+"/legacy"),"KeJianTimetable");
                     string target=Bundle(app); Put(Path.Combine(old,"timetable.json"),"personal timetable");
                     PortableDataResult result=PortableData.Prepare(app,old,true,copy);
                     Check(result.Migrated&&result.Warning.Length==0&&!Directory.Exists(old),"bundle blocked migration");
-                    Check(File.ReadAllText(Path.Combine(target,"timetable.json"))=="personal timetable"&&File.Exists(Path.Combine(target,"course-tools/browser-extension/manifest.json"))&&File.Exists(Path.Combine(target,"runtime/1.7.4/course-tools/KeJianCourseTools.exe")),"migration lost data or packaged assets");
+                    Check(File.ReadAllText(Path.Combine(target,"timetable.json"))=="personal timetable"&&File.Exists(Path.Combine(target,"course-tools/browser-extension/manifest.json"))&&File.Exists(Path.Combine(target,"runtime/1.9.0/course-tools/KeJianCourseTools.exe")),"migration lost data or packaged assets");
                     Check(Directory.GetDirectories(app,".kejian-bundle-*").Length==0,"bundle staging leaked");
                 }
             });

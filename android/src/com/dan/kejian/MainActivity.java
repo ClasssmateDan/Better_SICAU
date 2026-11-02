@@ -95,13 +95,17 @@ public final class MainActivity extends Activity {
     private boolean isLocal() { String url = browser == null ? null : browser.getUrl(); return url != null && (url.equals(PAGE) || url.startsWith(PAGE + "#")); }
     private final class NativeBridge {
         @JavascriptInterface public void postMessage(String json) {
-            if (json == null || json.length() > 6000000) return;
+            if (json == null || json.length() > 16000000) return;
             runOnUiThread(() -> { if (!isLocal()) return; try { handle(new JSONObject(json)); } catch (Exception error) { sendError(error.getMessage()); } });
         }
     }
     private void handle(JSONObject request) throws Exception {
         switch (request.getString("type")) {
             case "app:ready": ready = true; sendState(); break;
+            case "learningpass:open":
+                try { startActivity(new Intent(this, com.dan.qrbatch.MainActivity.class)); }
+                catch (Exception error) { sendError("无法打开学习通签到，请重新打开课间后重试"); }
+                break;
             case "timetable:sync":
                 store.save(request.getJSONObject("data")); ReminderReceiver.schedule(this); sendState(); break;
             case "reminders:setEnabled":
@@ -208,7 +212,7 @@ public final class MainActivity extends Activity {
         if (!ready) return;
         try {
             boolean enabled = ReminderReceiver.enabled(this), allowed = ReminderReceiver.canNotify(this), exact = ReminderReceiver.exactAllowed(this);
-            String text = !allowed ? "系统通知尚未允许，请在手机设置中允许课间通知。" : !enabled ? "已关闭。打开开关后，每节上课和下课各提醒一次。" : exact ? "已开启：每节上课、下课各提醒一次；课表修改后自动同步。" : "已开启普通提醒。尚未允许“闹钟和提醒”，系统可能延迟；可点击下方允许准时提醒。";
+            String text = !allowed ? "系统通知尚未允许，请在手机设置中允许课间通知。" : !enabled ? "已关闭。打开开关后，将接收上下课、备忘录及节假日提醒。" : exact ? "已开启：上下课、备忘录及节假日到时提醒，修改后自动同步。" : "已开启普通提醒。尚未允许“闹钟和提醒”，系统可能延迟；可点击下方允许准时提醒。";
             send(new JSONObject().put("type", "desktop:state").put("ready", true).put("enabled", enabled).put("exact", exact).put("message", text));
         } catch (Exception ignored) { /* next sync retries */ }
     }
