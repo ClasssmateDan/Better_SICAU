@@ -40,6 +40,8 @@ await copyFile(path.join(base, 'learningpass/NOTICE.txt'), path.join(learningPas
 for (const license of await readdir(path.join(base, 'learningpass/licenses'))) {
   await copyFile(path.join(base, 'learningpass/licenses', license), path.join(learningPassAssets, 'licenses', license));
 }
+await mkdir(path.join(assets,'signin'),{recursive:true});
+await copyFile(path.join(base,'signin/NOTICE.txt'),path.join(assets,'signin/NOTICE.txt'));
 // Remove obsolete generated feature assets from earlier builds.
 for (const name of ['COURSE-TOOLS-THIRD-PARTY-LICENSES.txt','course-tools-guide.md']) {
   try { await unlink(path.join(assets,name)); } catch (error) { if (error.code !== 'ENOENT') throw error; }

@@ -43,7 +43,7 @@ await writeFile(path.join(stage,'gradle.properties'),'org.gradle.jvmargs=-Xmx153
 await writeFile(path.join(stage,'app/build.gradle'),`plugins { id 'com.android.application' }
 android {
  namespace 'com.dan.kejian'; compileSdk 35; buildToolsVersion '35.0.0'
- defaultConfig { applicationId 'com.dan.kejian'; minSdk 26; targetSdk 35; versionCode 10902; versionName '1.9.2' }
+ defaultConfig { applicationId 'com.dan.kejian'; minSdk 26; targetSdk 35; versionCode 10904; versionName '1.9.4' }
  compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
  testOptions { unitTests.includeAndroidResources = true; unitTests.all {
   systemProperty 'robolectric.offline','true'

@@ -1,0 +1,17 @@
+课间课程表 · 签到浏览器 IPv4 兼容
+
+SigninProxyBridge interoperates with the Chromium WebView support-library
+boundary used by AndroidX WebKit ProxyController. The supported feature names
+and method contracts originate from the Android Open Source Project and
+Chromium contributors under the Apache License, Version 2.0 / BSD licenses.
+
+Reference implementations:
+https://github.com/androidx/androidx/blob/androidx-main/webkit/webkit/src/main/java/androidx/webkit/internal/ProxyControllerImpl.java
+https://github.com/androidx/androidx/blob/androidx-main/webkit/webkit/src/main/java/androidx/webkit/internal/WebViewGlueCommunicator.java
+https://github.com/chromium/chromium/tree/main/android_webview/support_library/boundary_interfaces
+
+This app's adapter uses the provider's existing interfaces, public
+WebView.getWebViewClassLoader(), and feature checks. It bundles no Chromium or
+AndroidX implementation binary. The loopback transport forwards encrypted TLS
+bytes only to the selected DNS IPv4 of eol.sicau.edu.cn:443; WebView continues
+to perform the original website certificate and hostname validation.
